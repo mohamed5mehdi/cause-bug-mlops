@@ -1,0 +1,18 @@
+# Normalisation des fins de ligne : LF dans le depot, conversion selon le type.
+* text=auto eol=lf
+
+# Scripts Windows : CRLF obligatoire
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Scripts Unix : LF obligatoire (executes dans les conteneurs Linux)
+mvnw text eol=lf
+*.sh text eol=lf
+
+# Binaires
+*.jar binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.pdf binary

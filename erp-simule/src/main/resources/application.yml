@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: erp-simule
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:causebugmlops}
+    username: ${DB_USER:erp_app}
+    password: ${DB_PASSWORD:changeme}
+    hikari:
+      # Role applicatif dedie au schema erp, distinct du role read-only "aiops_reader"
+      # utilise par aiops-engine sur le meme cluster PostgreSQL (cf. decision Phase 1
+      # : transport des traces via schema partage + LISTEN/NOTIFY).
+      schema: erp
+      pool-name: erp-simule-pool
+      maximum-pool-size: 10
+
+  jpa:
+    hibernate:
+      # Le schema est proprietaire de Flyway : Hibernate ne doit jamais generer ou
+      # alterer le DDL en production. "validate" fait echouer le demarrage si le
+      # modele Java et le schema reel divergent - garde-fou volontaire.
+      ddl-auto: validate
+    # Evite l'anti-pattern "Open Session In View" (transaction ouverte jusqu'a la
+    # vue/serialisation JSON) : les acces lazy hors couche service doivent echouer
+    # explicitement plutot que de degrader silencieusement les performances.
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: erp
+        jdbc:
+          time_zone: UTC
+        # Necessaire pour que le verrou PESSIMISTIC_WRITE avec query hint de timeout
+        # (voir *Repository#findByIdForUpdate) soit honore par le driver PostgreSQL.
+        query:
+          timeout: 5
+
+  flyway:
+    enabled: true
+    schemas: erp
+    default-schema: erp
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+logging:
+  pattern:
+    # Correlation-ID (metier) et Request-ID (technique) injectes dans le MDC par le
+    # filtre de tracabilite (voir Phase 1). Absent -> affiche vide plutot que "null".
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} [reqId=%X{requestId:-} corrId=%X{businessCorrelationId:-}] - %msg%n"
+  level:
+    com.causebugmlops: DEBUG
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
