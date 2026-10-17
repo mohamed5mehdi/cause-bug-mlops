@@ -1,8 +1,8 @@
 # erp-simule
 
-Système observé de Cause.Bug.MLOps : un ERP d'achats générique en Java 21 /
-Spring Boot 3.4.5 / PostgreSQL 16. Il ne connaît pas l'existence du pipeline de
-diagnostic.
+Système observé de Cause.Bug.MLOps : un simulateur de processus d'achats
+(*procurement workflow simulator*) en Java 21 / Spring Boot 3.4.5 /
+PostgreSQL 16. Il ne connaît pas l'existence du pipeline de diagnostic.
 
 ## Domaine
 

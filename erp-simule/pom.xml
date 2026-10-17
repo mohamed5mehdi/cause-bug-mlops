@@ -16,10 +16,10 @@
     <version>0.1.0-SNAPSHOT</version>
     <name>erp-simule</name>
     <description>
-        Module ERP simule (domaine Achat Interne / Achat de Pieces) - Cause.Bug.MLOps.
-        Systeme observe par aiops-engine ; ne connait jamais l'existence du pipeline de
-        diagnostic. Represente un ERP d'achats generique (Java 21, Spring Boot 3.4.5,
-        PostgreSQL) pour une demonstration realiste.
+        Simulateur de processus d'achats (procurement workflow simulator) - Cause.Bug.MLOps.
+        Domaine Achat Interne / Achat de Pieces : validation hierarchique et gouvernance
+        budgetaire. Systeme observe par aiops-engine ; ne connait jamais l'existence du
+        pipeline de diagnostic.
     </description>
 
     <properties>

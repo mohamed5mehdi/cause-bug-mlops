@@ -20,7 +20,8 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   - `.gitattributes` : LF par défaut, CRLF pour les scripts Windows, LF imposé
     pour `mvnw` (exécuté dans des conteneurs Linux).
   - Licence MIT, titulaire Mohamed Mehdi El Jadaoui.
-  - Description du `pom.xml` reformulée : « ERP d'achats générique ».
+  - Description du `pom.xml` reformulée de façon générique, sans référence
+    nominative (vocabulaire définitif fixé par l'ADR-005).
 - **Alternatives écartées** :
   - Dossiers vides ou « placeholders » pour les modules futurs : Git ne versionne
     pas les dossiers vides, et ils annonceraient un contenu inexistant.
@@ -120,3 +121,24 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   : 4 lignes), mais `INSERT` et `CREATE TABLE` sont refusés ; `nspowner(erp) = erp_app`.
   Toute modification du script de rôles exige `docker compose down -v` (recréation
   du volume, donc perte des données locales).
+
+---
+
+## ADR-005 — Vocabulaire : « simulateur de processus d'achats », pas « ERP »
+
+- **Date** : 2026-10-17
+- **Statut** : accepté
+- **Contexte** : erp-simule n'est pas un ERP. Il simule un seul processus métier :
+  un workflow d'achat avec validation hiérarchique et gouvernance budgétaire. Le mot
+  « ERP » surestimait le périmètre devant un public technique.
+- **Décision** : dans la documentation, les README et les métadonnées (description du
+  `pom.xml`), le système observé est désigné « simulateur de processus d'achats »
+  (anglais : *procurement workflow simulator*), ou « processus métier » / « système
+  observé ». Les identifiants techniques existants (`erp-simule`, schéma `erp`, rôle
+  `erp_app`, package `com.causebugmlops.erp`) restent inchangés tant qu'un
+  renommage n'est pas décidé explicitement.
+- **Alternatives écartées** : renommer aussi les identifiants maintenant (coût élevé :
+  migrations, rôles, packages, images, sans bénéfice fonctionnel pour le MVP).
+- **Conséquences** : « ERP » n'est plus utilisé pour désigner le système observé
+  (seul cet ADR le mentionne, pour l'écarter) ; les
+  identifiants `erp*` restent visibles dans le code et la configuration.

@@ -1,7 +1,9 @@
 # Cause.Bug.MLOps
 
 Plateforme AIOps d'analyse automatique de cause racine (Automated Root Cause
-Analysis) pour un ERP d'achats générique distribué.
+Analysis) appliquée à un simulateur de processus d'achats (*procurement
+workflow simulator*) : workflow de validation hiérarchique et gouvernance
+budgétaire.
 
 > **Statut : en construction.** Ce README décrit uniquement ce qui existe
 > réellement dans le dépôt. Les fonctionnalités prévues sont listées à part.
