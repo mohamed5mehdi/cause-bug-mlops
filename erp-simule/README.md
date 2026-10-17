@@ -1,35 +1,46 @@
-# erp-simule — Cause.Bug.MLOps (Phase 2)
+# erp-simule
 
-Module Java 21 / Spring Boot 3.4.5. Domaine reduit et fidele : Achat Interne
-(workflow N+1 -> Technicien -> Acheteur -> AMG -> DAF -> DG + ajustement
-budgetaire Sous-Famille/Famille) et Achat de Pieces (verification automatique
-de stock, chemin En Stock / Rupture).
+Système observé de Cause.Bug.MLOps : un ERP d'achats générique en Java 21 /
+Spring Boot 3.4.5 / PostgreSQL 16. Il ne connaît pas l'existence du pipeline de
+diagnostic.
 
-## Ce qui est livre dans cette phase
+## Domaine
 
-- 14 entites JPA (`domain/`), 9 enums (`domain/common/`), 5 repositories
-  (`repository/`), migration Flyway complete (`db/migration/V1__init_schema.sql`).
-- Strategie de verrouillage explicite : `PESSIMISTIC_WRITE` sur
-  `SousFamilleBudgetaire`, `FamilleBudgetaire` et `Article` (bugs candidats n1/n2
-  pour le futur module de fault injection) ; `@Version` (optimiste) sur
-  `DemandeAchatInterne` et `PurchaseOrder`.
-- `DemandeAchatInterne.id` (UUID) sert directement de Business-Correlation-ID
-  pour la strategie de tracabilite distribuee definie en Phase 1.
-- `HistoriqueValidation` (piste d'audit fonctionnelle) est explicitement
-  distincte de `transaction_trace_event` (donnee technique de diagnostic,
-  Phase 1) : la premiere est proprietaire d'erp-simule, la seconde d'aiops-engine.
+- **Achat Interne** : validation hiérarchique N+1 → Technicien → Acheteur
+  (valorisation et engagement budgétaire) → AMG → DAF → DG, puis génération du
+  Purchase Order. Ajustements budgétaires Sous-Famille / Famille.
+- **Achat de Pièces** : vérification automatique du stock (chemin En stock /
+  Rupture) et budget pièces annuel avec contrôle de l'équation budgétaire.
 
-## Explicitement hors perimetre de cette livraison
+## Ce qui est livré
 
-- Couche service / logique metier (transitions d'etat, moteur de workflow).
-- Couche REST (controllers, DTO, mapping).
-- Aspect AOP + filtre MDC de tracabilite (specifies en Phase 1, a implementer
-  en Phase 3).
-- Module de fault injection.
-- `docker-compose.yml`, `aiops-engine`, `dashboard-aiops`.
+- 14 entités JPA, migrations Flyway V1 à V4 (`ddl-auto: validate` : Hibernate
+  vérifie le schéma au démarrage, sans jamais le modifier).
+- Couche service du workflow (machine à états, verrous `PESSIMISTIC_WRITE` sur
+  les enveloppes budgétaires et le stock, `@Version` sur `DemandeAchatInterne`
+  et `PurchaseOrder`).
+- Sonde de santé `/actuator/health` et image Docker (`Dockerfile`).
+- Tests :
+  - `ApplicationContextSmokeTest` : démarrage complet contre un PostgreSQL
+    éphémère (Testcontainers) ;
+  - `ConstatsBlocCVerificationTest` : constats sur le workflow d'ajustement et
+    la concurrence budgétaire (nécessite un PostgreSQL et `TEST_PG_PASSWORD`).
 
-## Choix delegue
+## Défaut connu, conservé volontairement
 
-Outil de migration : **Flyway** retenu (SQL brut versionne, plus lisible pour
-un audit humain que l'abstraction XML/YAML de Liquibase, et plus idiomatique
-avec l'ecosysteme Spring Boot).
+`DemandeAjustementService.confirmerAcheteur` permet à une demande d'atteindre
+`VALIDEE_DG` sans valorisation ; la génération du PO échoue ensuite. Ce défaut
+est conservé comme scénario de panne pour la démonstration du diagnostic
+(voir `docs/decisions-and-learnings.md`, ADR-002).
+
+## Prévu (non livré)
+
+- API REST du workflow et jeu de données de démonstration.
+- Traçabilité technique (MDC, émission d'événements de trace).
+- Module d'injection de pannes.
+
+## Lancement
+
+Depuis la racine du dépôt : `docker compose up -d --build` (voir le README racine).
+
+Tests : `./mvnw test -Dtest=ApplicationContextSmokeTest` (Docker requis).

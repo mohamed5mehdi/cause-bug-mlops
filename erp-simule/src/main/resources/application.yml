@@ -5,7 +5,9 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:causebugmlops}
     username: ${DB_USER:erp_app}
-    password: ${DB_PASSWORD:changeme}
+    # Aucune valeur par defaut : un demarrage sans mot de passe fourni (fichier .env
+    # ou variable d'environnement) doit echouer explicitement (cf. ADR-004).
+    password: ${DB_PASSWORD}
     hikari:
       # Role applicatif dedie au schema erp, distinct du role read-only "aiops_reader"
       # utilise par aiops-engine sur le meme cluster PostgreSQL (cf. decision Phase 1

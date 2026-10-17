@@ -18,11 +18,23 @@ Analysis) pour un ERP d'achats générique distribué.
 
 | Module | Contenu |
 |---|---|
-| `erp-simule` | Modèle de domaine JPA, migrations Flyway V1 à V3, couche service du workflow d'achat interne, tests de vérification sur PostgreSQL |
+| `erp-simule` | Modèle de domaine JPA, migrations Flyway V1 à V4, couche service du workflow d'achat interne, sonde de santé, image Docker, tests sur PostgreSQL éphémère |
+| Infrastructure | `docker-compose.yml` : PostgreSQL 16 + pgvector, rôles séparés (`erp_app` propriétaire du schéma `erp`, `aiops_reader` en lecture seule) |
+
+## Lancement
+
+Prérequis : Docker avec Compose v2.
+
+```bash
+cp .env.example .env      # puis remplacer chaque valeur par un mot de passe
+docker compose up -d --build
+curl http://localhost:8080/actuator/health   # {"status":"UP"}
+```
+
+PostgreSQL est exposé sur le port hôte `5435`.
 
 ## Prévu (non livré)
 
-- Démarrage de bout en bout par `docker compose up`
 - API REST et émission des traces d'exécution depuis `erp-simule`
 - Module `aiops-engine` : ingestion, indexation pgvector, `POST /diagnose`
 - Injection de pannes et jeu d'évaluation chiffré

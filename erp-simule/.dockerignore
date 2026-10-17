@@ -1,0 +1,12 @@
+# Seuls pom.xml et src/ sont necessaires au build de l'image.
+target/
+.mvn/
+mvnw
+mvnw.cmd
+*.md
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+**/.env

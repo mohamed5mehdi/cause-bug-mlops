@@ -54,3 +54,69 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   dépôt).
 - **Conséquences** : le README public présentera T1a comme défaut connu et
   conservé ; le test T1a sert de preuve de reproductibilité.
+
+---
+
+## ADR-003 — Démarrage d'erp-simule : défauts E1 et E2, garde-fou et Testcontainers
+
+- **Date** : 2026-10-17
+- **Statut** : accepté
+- **Contexte** : erp-simule ne démarrait pas. Constaté en lançant l'application
+  contre un PostgreSQL 16 jetable :
+  - **E1** : `Schema-validation: missing column [ligne_demande_id] in table
+    [erp.ligne_purchase_order]`. V1 avait créé `article_id NOT NULL`, jamais mappé,
+    alors que l'entité `LignePurchaseOrder` référence la ligne de demande.
+    Comparaison complète entités/schéma : aucun autre écart.
+  - **E2** : `Not a managed type: class java.lang.Object` —
+    `PoNumeroCompteurRepository extends Repository<Object, Long>`.
+  - Les deux tests existants forçaient `ddl-auto=none` et remplaçaient le
+    repository par un mock : ils ne pouvaient détecter ni E1 ni E2.
+- **Décision** :
+  - Migration `V4` : ajout de `ligne_demande_id NOT NULL` (FK + index), suppression
+    de `article_id`. L'article reste accessible via la ligne de demande, et les
+    lignes en texte libre (sans article) deviennent commandables.
+  - `PoNumeroCompteurRepository` devient une classe `@Repository` appelant
+    `erp.po_numero_compteur()` via `JdbcTemplate` (même nom, tests existants intacts).
+  - Garde-fou `ApplicationContextSmokeTest` : contexte complet, `ddl-auto=validate`,
+    PostgreSQL éphémère `pgvector/pgvector:pg16` via Testcontainers + `@ServiceConnection`.
+  - `testcontainers.version` surchargé à **1.21.4** : la version gérée par Spring
+    Boot 3.4.5 (1.20.6) échoue avec Docker Engine 29 (API minimale 1.44) ; les notes
+    de version officielles indiquent que 1.21.4 rend la branche 1.x compatible.
+- **Alternatives écartées** : garder `article_id` nullable (colonne morte) ;
+  remapper l'entité sur l'article (perte de traçabilité) ; `Repository<PurchaseOrder,
+  Long>` détourné ; Testcontainers 2.x (renommage des modules et des packages).
+- **Conséquences et apprentissage** :
+  - Vérifié : `docker compose up` → « Successfully applied 4 migrations… v4 »,
+    `/actuator/health` = UP ; smoke test 3/3.
+  - **Piège d'environnement** : l'extension Java de l'IDE (serveur Eclipse JDT)
+    recompile en tâche de fond dans le même `target/classes` que Maven et y produit
+    des `.class` invalides (`ClassFormatError: Invalid method Code length 0`).
+    Preuve : la même commande Maven échoue dans le dossier du projet et réussit
+    (3/3) sur une copie hors de l'espace de travail de l'IDE. L'image Docker n'est
+    pas concernée (build isolé).
+
+---
+
+## ADR-004 — Rôles PostgreSQL et gestion des secrets locaux
+
+- **Date** : 2026-10-17
+- **Statut** : accepté
+- **Contexte** : l'architecture sépare `erp_app` (écriture, schéma `erp`) et
+  `aiops_reader` (lecture seule). `application.yml` contenait un mot de passe par
+  défaut `changeme`.
+- **Décision** :
+  - Script `infra/postgres/init/01-roles.sh` (exécuté à la création du volume) :
+    schéma `erp` appartenant à `erp_app` ; `aiops_reader` avec `USAGE` et `SELECT`
+    par défaut sur les tables et séquences futures de `erp_app`.
+  - `GRANT CREATE ON DATABASE` à `erp_app` : V1 commence par
+    `CREATE SCHEMA IF NOT EXISTS erp`, et PostgreSQL vérifie ce droit avant de
+    constater que le schéma existe (échec observé : `permission denied for
+    database`). Les migrations existantes ne sont jamais modifiées.
+  - Secrets : `.env.example` versionné, `.env` local ignoré par git ; `DB_PASSWORD`
+    sans valeur par défaut (échec explicite si absent).
+- **Alternatives écartées** : tout exécuter sous `postgres` ; modifier V1 ;
+  `erp_app` propriétaire de la base (droits trop larges).
+- **Conséquences** : vérifié avec `psql` — `aiops_reader` lit (`flyway_schema_history`
+  : 4 lignes), mais `INSERT` et `CREATE TABLE` sont refusés ; `nspowner(erp) = erp_app`.
+  Toute modification du script de rôles exige `docker compose down -v` (recréation
+  du volume, donc perte des données locales).
