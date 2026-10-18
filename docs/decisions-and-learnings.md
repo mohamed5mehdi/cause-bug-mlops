@@ -292,3 +292,52 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   - Revue : la CLI Qodo n'est pas installée sur la machine ; relecture manuelle sur
     5 axes (correction, lisibilité, architecture, sécurité, performance), sans point
     bloquant. Le diff de `DemandeAjustementService` inclut un reformatage par l'IDE.
+
+---
+
+## ADR-010 — Trace d'exécution des services : table dédiée + pg_notify (J3)
+
+- **Date** : 2026-10-18
+- **Statut** : accepté
+- **Contexte** : le moteur de diagnostic a besoin de la chronologie technique de chaque
+  dossier (quel service, quand, combien de temps, succès ou échec). Deux contraintes :
+  la trace d'un échec doit survivre au rollback métier, et aiops-engine peut être
+  arrêté. D'après la documentation PostgreSQL 16 (NOTIFY), une notification émise dans
+  une transaction annulée n'est pas remise, n'atteint que les sessions déjà en écoute,
+  et sa charge doit rester sous 8 000 octets.
+- **Décision** :
+  - **Transport (option B)** : table `erp.trace_execution` (migration V5) ; un trigger
+    `AFTER INSERT` émet `pg_notify('trace_execution', id)`. La notification ne porte
+    que l'identifiant ; la donnée reste relisible en table.
+  - **Granularité** : chaque méthode publique de `com.causebugmlops.erp.service`, en
+    succès comme en échec. La panne P3 (FLUX_METIER) ne lève aucune exception : seule
+    la séquence des appels la révèle.
+  - **Isolation** : écriture en `REQUIRES_NEW`, jamais dans la transaction métier.
+  - **Aspect le plus externe** (`HIGHEST_PRECEDENCE`) : il entoure le proxy
+    transactionnel, donc un échec au commit est tracé ECHEC, pas SUCCES.
+  - **Tampon par requête** : les appels imbriqués sont gardés en mémoire (ThreadLocal)
+    et écrits en un seul lot à la fin de l'appel le plus externe, après la libération
+    de la connexion métier : pas de deuxième connexion simultanée, pas de famine du
+    pool (10 connexions).
+  - Une erreur d'écriture de trace est journalisée et ignorée : la trace ne fait
+    jamais échouer le métier.
+- **Alternatives écartées** :
+  - option A (`pg_notify` seul, charge complète) : traces perdues si l'écouteur est
+    absent, taille bornée ;
+  - traces sur exceptions seules : aveugle aux pannes de flux sans exception ;
+  - écriture immédiate en `REQUIRES_NEW` à chaque appel imbriqué : deux connexions
+    par requête pendant la transaction métier, risque de famine du pool sous charge.
+- **Conséquences (vérifiées)** :
+  - Tests : 20/20, exécutés par Mehdi (dont `TraceExecutionTest` : 422 annulé →
+    engagement inchangé, traces `valoriser:ECHEC` et `verifierEtEngager:ECHEC`
+    présentes, identifiant reçu par un client en écoute sur le canal).
+  - Pile Compose : V5 appliquée (5 migrations) ; requête réelle `demo-j3-422` → 2
+    traces ECHEC `BudgetInsuffisantException` lues avec `aiops_reader` ;
+    `montant_engage` d'INFO-LOG reste 0,00 ; `DELETE` refusé à `aiops_reader`
+    (`permission denied`).
+- **Limites connues** :
+  - `creerBrouillon` est tracé sans `businessCorrelationId` (l'id n'existe pas encore) ;
+  - une trace en tampon est perdue si la JVM s'arrête brutalement en pleine requête ;
+  - la lecture `GET /api/demandes/{id}` passe par le repository : non tracée ;
+  - les durées du premier appel après démarrage incluent le préchauffage de la JVM
+    (614 ms observés), à écarter des futures statistiques.

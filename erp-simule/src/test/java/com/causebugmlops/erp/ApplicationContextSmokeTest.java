@@ -49,8 +49,8 @@ class ApplicationContextSmokeTest {
                 "SELECT max(version::int)::text FROM erp.flyway_schema_history WHERE success AND version IS NOT NULL",
                 String.class);
 
-        assertThat(migrationsReussies).isEqualTo(4);
-        assertThat(derniereVersion).isEqualTo("4");
+        assertThat(migrationsReussies).isEqualTo(5);
+        assertThat(derniereVersion).isEqualTo("5");
     }
 
     @Test

@@ -64,6 +64,14 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- AOP : aspect de trace d'execution des services (ADR-010). aspectjweaver
+             arrive deja par spring-data-jpa ; la dependance explicite evite de
+             dependre d'un detail transitif. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- Validation Bean (jakarta.validation sur les entites) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
