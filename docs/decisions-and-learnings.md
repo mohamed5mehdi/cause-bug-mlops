@@ -170,3 +170,40 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   → 400, utilisateur ou demande inconnus → 404 ; une seule demande créée en base.
   Le corps des erreurs reste le format Spring par défaut, sans détail lisible : traité
   à J2c (`ProblemDetail`).
+
+---
+
+## ADR-007 — Workflow complet par HTTP (J2b) : données de démo, TVA bornée, PO transactionnel
+
+- **Date** : 2026-10-18
+- **Statut** : accepté
+- **Contexte** : le parcours BROUILLON → PO_GENERE exige des données de référence
+  (un utilisateur par rôle, fournisseur, enveloppes budgétaires) et expose un piège :
+  `PurchaseOrderService.genererDepuisDemande(DemandeAchatInterne)` attend une entité
+  attachée à une session ouverte.
+- **Décision** :
+  - Données de démo en migration Flyway **répétable** `db/demo/R__donnees_demo.sql`,
+    idempotente (ON CONFLICT / NOT EXISTS), chargée uniquement sous le profil `demo`
+    (activé par Docker Compose). Personnes et sociétés fictives.
+  - 8 endpoints de workflow ; chacun délègue au service, qui contrôle le statut, puis
+    renvoie l'état relu. L'en-tête `X-Utilisateur-Id` n'est exigé que là où le service
+    enregistre un acteur (N+1, AMG, DAF).
+  - Taux de TVA borné à [0 ; 1] dans `ValorisationRequest` (option A) : une saisie en
+    pourcentage (20) est refusée en 400. La panne P2 sera injectée en aval de l'API (J8).
+  - Nouvelle variante `genererDepuisDemande(UUID)` qui charge la demande dans sa propre
+    transaction ; la variante existante n'est pas modifiée.
+- **Alternatives écartées** : insertions manuelles de données (à refaire à chaque base) ;
+  TVA non bornée dans l'API (API volontairement mal protégée) ; transaction dans le
+  contrôleur.
+- **Conséquences (vérifiées sur la pile Compose)** :
+  - Parcours HTTP complet → `PO_GENERE`, PO `PO-20261018-1000`, 4 536,00 TTC
+    (HT 3 780,00 × 1,20) ; 2 lignes de PO rattachées aux lignes de demande.
+  - Sous-famille INFO-MAT : 4 536,00 engagés une seule fois (la tentative TVA = 20,
+    refusée en 400, n'a rien engagé) ; rejeu du script de démo : 0 doublon.
+  - Historique : 3 décisions (N+1, AMG, DAF) avec `business_correlation_id` = id de la
+    demande ; aucune trace pour les étapes technique et DG (défaut E7, connu).
+  - Action hors séquence (validation DG sur une demande PO_GENERE) → **500** : le
+    service lève `IllegalStateException`. Traduction en 409 prévue à J2c.
+  - Observation à arbitrer : l'engagement est porté par la sous-famille seule ;
+    `famille_budgetaire.montant_engage` reste à 0. À clarifier (règle de consolidation
+    Famille / Sous-Famille) avant le jalon des pannes.

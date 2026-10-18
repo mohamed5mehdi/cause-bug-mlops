@@ -22,6 +22,7 @@ budgétaire.
 |---|---|
 | `erp-simule` | Modèle de domaine JPA, migrations Flyway V1 à V4, couche service du workflow d'achat interne, sonde de santé, image Docker, tests sur PostgreSQL éphémère |
 | Infrastructure | `docker-compose.yml` : PostgreSQL 16 + pgvector, rôles séparés (`erp_app` propriétaire du schéma `erp`, `aiops_reader` en lecture seule) |
+| API REST | Workflow Achat Interne de bout en bout sous `/api/demandes` : création, soumission, validations N+1 / technique / AMG / DAF / DG, valorisation avec engagement budgétaire, génération du Purchase Order ; données de démonstration (profil `demo`) |
 
 ## Lancement
 
@@ -37,7 +38,8 @@ PostgreSQL est exposé sur le port hôte `5435`.
 
 ## Prévu (non livré)
 
-- API REST et émission des traces d'exécution depuis `erp-simule`
+- Réponses d'erreur structurées (`ProblemDetail`) et logs corrélés par demande (MDC)
+- Émission des traces d'exécution depuis `erp-simule`
 - Module `aiops-engine` : ingestion, indexation pgvector, `POST /diagnose`
 - Injection de pannes et jeu d'évaluation chiffré
 - Tableau de bord `dashboard-aiops`

@@ -6,6 +6,7 @@ import com.causebugmlops.erp.domain.common.StatutDemande;
 import com.causebugmlops.erp.domain.common.StatutPurchaseOrder;
 import com.causebugmlops.erp.domain.demande.DemandeAchatInterne;
 import com.causebugmlops.erp.domain.fournisseur.Fournisseur;
+import com.causebugmlops.erp.repository.DemandeAchatInterneRepository;
 import com.causebugmlops.erp.repository.PoNumeroCompteurRepository;
 import com.causebugmlops.erp.repository.PurchaseOrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +24,25 @@ public class PurchaseOrderService {
 
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final PoNumeroCompteurRepository poNumeroCompteurRepository;
+    private final DemandeAchatInterneRepository demandeRepository;
+
+    /**
+     * Point d'entree pour l'API : charge la demande DANS la transaction de generation.
+     * <p>
+     * La variante {@link #genererDepuisDemande(DemandeAchatInterne)} attend une entite
+     * deja attachee a une session ouverte. Appelee depuis un controleur, l'entite serait
+     * detachee : la lecture des lignes echouerait (lazy) et le passage au statut
+     * PO_GENERE ne serait pas enregistre. Ici, chargement et generation partagent la
+     * meme transaction (l'appel interne est couvert par la transaction de cette methode).
+     *
+     * @throws IllegalArgumentException si la demande n'existe pas
+     */
+    @Transactional
+    public PurchaseOrder genererDepuisDemande(UUID demandeId) {
+        DemandeAchatInterne demande = demandeRepository.findById(demandeId)
+                .orElseThrow(() -> new IllegalArgumentException("Demande introuvable: " + demandeId));
+        return genererDepuisDemande(demande);
+    }
 
     @Transactional
     public PurchaseOrder genererDepuisDemande(DemandeAchatInterne demande) {

@@ -1,0 +1,5 @@
+# Profil "demo" : ajoute les donnees de demonstration (db/demo) aux migrations du schema.
+# Active par docker-compose.yml (SPRING_PROFILES_ACTIVE=demo) ; jamais par defaut.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/demo
