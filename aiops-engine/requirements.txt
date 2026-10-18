@@ -1,0 +1,5 @@
+# Dependances d'execution d'aiops-engine (versions figees, relevees le 2026-10-18).
+fastapi==0.146.0
+uvicorn==0.54.0
+asyncpg==0.32.0
+pydantic-settings==2.16.0

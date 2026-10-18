@@ -40,6 +40,25 @@ services:
       DB_PASSWORD: ${ERP_APP_PASSWORD:?ERP_APP_PASSWORD manquant dans .env}
     ports:
       - "${ERP_HOST_PORT:-8080}:8080"
+    # Sonde de sante : HEALTHCHECK du Dockerfile d'erp-simule (actuator).
+
+  aiops-engine:
+    build:
+      context: ./aiops-engine
+      target: runtime
+    depends_on:
+      # erp-simule applique les migrations Flyway, dont la table erp.trace_execution
+      # qu'aiops-engine ecoute : il doit etre pret avant.
+      erp-simule:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: causebugmlops
+      DB_USER: aiops_reader
+      DB_PASSWORD: ${AIOPS_READER_PASSWORD:?AIOPS_READER_PASSWORD manquant dans .env}
+    ports:
+      - "${AIOPS_HOST_PORT:-8000}:8000"
 
 volumes:
   pgdata:

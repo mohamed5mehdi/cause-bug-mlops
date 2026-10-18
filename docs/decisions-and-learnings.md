@@ -341,3 +341,52 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   - la lecture `GET /api/demandes/{id}` passe par le repository : non tracée ;
   - les durées du premier appel après démarrage incluent le préchauffage de la JVM
     (614 ms observés), à écarter des futures statistiques.
+
+---
+
+## ADR-011 — aiops-engine : ingestion des traces par LISTEN + rattrapage (J4)
+
+- **Date** : 2026-10-18
+- **Statut** : accepté
+- **Contexte** : premier composant Python. Il doit recevoir les traces émises par le
+  simulateur d'achats (ADR-010) sans jamais en perdre, y compris quand il est arrêté, et
+  disposer d'un espace où écrire ses propres données (copie des traces, puis embeddings à
+  J5). L'extension pgvector ne peut être créée que par le super-utilisateur, et les scripts
+  d'initialisation PostgreSQL ne s'exécutent qu'à la création du volume.
+- **Décision** :
+  - Service FastAPI 0.146.0 / Uvicorn 0.54.0 / asyncpg 0.32.0 / pydantic-settings 2.16.0,
+    image `python:3.12-slim` (version figée dans l'image, pas déduite de l'hôte), utilisateur
+    non-root, Dockerfile en deux étapes (`runtime`, `test`).
+  - `infra/postgres/init/02-aiops.sql` : `CREATE EXTENSION vector` et schéma `aiops`
+    propriété d'`aiops_reader`, qui reste en lecture seule sur `erp`. Nom du rôle conservé.
+  - Volume recréé (option A) pour appliquer ce script : la pile complète redémarre de zéro
+    en une commande.
+  - Table `aiops.transaction_trace_event` (copie, `source_id` UNIQUE) créée par un script
+    idempotent au démarrage (pas d'outil de migration Python pour l'instant).
+  - Écoute sur une **connexion dédiée hors pool** (une connexion rendue au pool perd ses
+    écouteurs, documentation asyncpg) ; copie en SQL côté serveur (`INSERT … SELECT …
+    ON CONFLICT DO NOTHING`).
+  - **Rattrapage** à chaque (re)connexion, lancé **après** l'activation de l'écoute : aucune
+    trace ne tombe entre les deux ; copie et rattrapage idempotents.
+  - Reconnexion automatique avec attente croissante (1 s → 30 s max) ; `/health` répond 503
+    tant que l'écoute est coupée.
+  - Routes : `GET /health`, `GET /traces/{correlationId}` (chronologie d'un dossier).
+  - Compose : `aiops-engine` démarre après `erp-simule` sain (Flyway crée la table écoutée).
+- **Alternatives écartées** :
+  - écoute sur une connexion du pool : écouteurs supprimés à la remise au pool ;
+  - rattrapage par « id > max(source_id) » : manquerait une trace dont la transaction
+    s'est validée après une trace d'id supérieur ;
+  - application manuelle du SQL sur l'ancien volume (option B) : moins reproductible.
+- **Conséquences (vérifiées)** :
+  - pytest dans le réseau Compose : 10/10 (5 unitaires, 5 d'intégration : santé, trace
+    notifiée puis copiée, rattrapage d'une trace supprimée, copie idempotente, UUID invalide
+    → 422).
+  - Redémarrage de PostgreSQL : `/health` en 503 pendant la coupure, de nouveau UP en ~2 s ;
+    une trace émise ensuite est copiée.
+  - Délai entre la fin d'un appel tracé et sa copie : 13 ms en moyenne, 27 ms au pire
+    (4 traces mesurées : échantillon faible, indicatif).
+- **Limites connues** :
+  - le rattrapage relit toute la table source (suffisant au volume du MVP, à borner ensuite) ;
+  - FastAPI répond 422 (et non 400) à un paramètre invalide : convention FastAPI, différente
+    du simulateur Java ;
+  - le compteur `traces_ingerees` de `/health` est en mémoire, remis à zéro au redémarrage.
