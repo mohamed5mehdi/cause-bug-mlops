@@ -207,3 +207,45 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   - Observation à arbitrer : l'engagement est porté par la sous-famille seule ;
     `famille_budgetaire.montant_engage` reste à 0. À clarifier (règle de consolidation
     Famille / Sous-Famille) avant le jalon des pannes.
+
+---
+
+## ADR-008 — Erreurs lisibles (ProblemDetail) et corrélation des logs (J2c)
+
+- **Date** : 2026-10-18
+- **Statut** : accepté
+- **Contexte** : les refus métier sortaient en 500 (`IllegalStateException`) ou en corps
+  Spring par défaut, sans identifiant permettant de relier une réponse à ses logs. Les
+  services signalaient « introuvable » et « mauvais statut » avec des exceptions Java
+  génériques, indiscernables d'un vrai défaut.
+- **Décision** (option B) :
+  - Deux exceptions métier : `RessourceIntrouvableException` (404) et
+    `TransitionStatutInvalideException` (409, hérite d'`IllegalStateException` pour ne pas
+    casser les appelants existants). Seules les gardes de statut et les recherches par
+    identifiant sont converties ; les incohérences internes (montant non valorisé,
+    fournisseur absent…) restent des `IllegalStateException` → **500**.
+  - `GestionnaireErreursApi` (`@RestControllerAdvice` + `ResponseEntityExceptionHandler`) :
+    400 détaillé (liste `erreurs`), 404, 409 (hors séquence, conflit `@Version`), 422
+    (budget, stock), 503 + `Retry-After` (verrou pessimiste), 500 sans fuite du message
+    technique. Chaque corps porte `code`, `requestId` et, si connu, `businessCorrelationId`.
+  - `FiltreRequestId` (écrit par Mehdi) : `X-Request-Id` repris s'il respecte
+    `^[A-Za-z0-9-]{1,64}$`, sinon UUID généré ; renvoyé au client ; MDC nettoyé en
+    `finally`. `IntercepteurCorrelationMetier` : `businessCorrelationId` = `{id}` de la
+    route s'il est un UUID ; posé par le contrôleur après une création.
+- **Alternatives écartées** : option A (`IllegalStateException` → 409 globalement) : une
+  panne injectée qui lève cette exception aurait été maquillée en refus métier, faussant
+  le signal du moteur de diagnostic.
+- **Conséquences (vérifiées)** :
+  - Tests : 15/15 (`FiltreRequestIdTest` 6, `GestionnaireErreursApiTest` 9), exécutés
+    sur une copie hors espace de travail.
+  - Pile Compose : 404, 409 (`statutActuel: PO_GENERE`), 400 (`lignes`, `justification`),
+    400 en-tête manquant, 422 (`montantManquant: 20000.00` sur INFO-LOG) ; après le 422,
+    `montant_engage` d'INFO-LOG reste 0,00 et la demande reste `VALIDEE_TECHNIQUE`
+    (rollback effectif). Logs : `reqId=demo-422 corrId=<id demande>`.
+  - Non vérifié : le 503 en conditions réelles (l'indication de délai de verrou de
+    3 000 ms est-elle appliquée par PostgreSQL ?). À tester avec deux transactions
+    concurrentes avant le jalon des pannes.
+  - Point de vigilance : le log WARN d'un 400 de validation reprend les valeurs rejetées
+    saisies par le client (risque d'injection dans les logs) ; à durcir.
+  - Donnée de démonstration ajoutée : une demande « Licences logicielles annuelles »
+    au statut `VALIDEE_TECHNIQUE` (scénario 422).

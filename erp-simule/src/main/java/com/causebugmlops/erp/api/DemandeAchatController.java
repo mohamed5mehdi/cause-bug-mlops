@@ -5,6 +5,8 @@ import com.causebugmlops.erp.api.dto.DecisionRequest;
 import com.causebugmlops.erp.api.dto.DemandeResponse;
 import com.causebugmlops.erp.api.dto.PurchaseOrderResponse;
 import com.causebugmlops.erp.api.dto.ValorisationRequest;
+import com.causebugmlops.erp.api.tracabilite.FiltreRequestId;
+import com.causebugmlops.erp.exception.RessourceIntrouvableException;
 import com.causebugmlops.erp.domain.commande.PurchaseOrder;
 import com.causebugmlops.erp.domain.common.TypeDemande;
 import com.causebugmlops.erp.domain.demande.DemandeAchatInterne;
@@ -24,7 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.MDC;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
@@ -66,6 +68,9 @@ public class DemandeAchatController {
                 requete.urgence(),
                 requete.justification(),
                 requete.lignes().stream().map(CreerDemandeRequest.Ligne::versDtoService).toList());
+
+        // L'id n'existe qu'apres la creation : l'intercepteur ne peut pas le poser ici.
+        MDC.put(FiltreRequestId.CLE_MDC_CORRELATION, creee.getId().toString());
 
         URI adresse = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(creee.getId()).toUri();
@@ -153,13 +158,11 @@ public class DemandeAchatController {
     private DemandeResponse lireDetail(UUID id) {
         return demandeRepository.findDetailById(id)
                 .map(DemandeResponse::depuis)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Demande introuvable : " + id));
+                .orElseThrow(() -> new RessourceIntrouvableException("Demande", id));
     }
 
     private Utilisateur trouverUtilisateur(Long id) {
         return utilisateurRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Utilisateur introuvable : " + id));
+                .orElseThrow(() -> new RessourceIntrouvableException("Utilisateur", id));
     }
 }

@@ -3,6 +3,7 @@ package com.causebugmlops.erp.service;
 import com.causebugmlops.erp.domain.budget.FamilleBudgetaire;
 import com.causebugmlops.erp.domain.budget.SousFamilleBudgetaire;
 import com.causebugmlops.erp.exception.BudgetInsuffisantException;
+import com.causebugmlops.erp.exception.RessourceIntrouvableException;
 import com.causebugmlops.erp.repository.FamilleBudgetaireRepository;
 import com.causebugmlops.erp.repository.SousFamilleBudgetaireRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class BudgetGovernanceService {
     @Transactional
     public void verifierEtEngager(Long sousFamilleId, BigDecimal montantTtc) {
         SousFamilleBudgetaire sf = sousFamilleRepository.findByIdForUpdate(sousFamilleId)
-                .orElseThrow(() -> new IllegalArgumentException("Sous-famille introuvable: " + sousFamilleId));
+                .orElseThrow(() -> new RessourceIntrouvableException("Sous-famille", sousFamilleId));
         
         if (sf.getMontantDisponible().compareTo(montantTtc) < 0) {
             BigDecimal montantManquant = montantTtc.subtract(sf.getMontantDisponible());

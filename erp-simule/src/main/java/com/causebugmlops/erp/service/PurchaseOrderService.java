@@ -6,6 +6,8 @@ import com.causebugmlops.erp.domain.common.StatutDemande;
 import com.causebugmlops.erp.domain.common.StatutPurchaseOrder;
 import com.causebugmlops.erp.domain.demande.DemandeAchatInterne;
 import com.causebugmlops.erp.domain.fournisseur.Fournisseur;
+import com.causebugmlops.erp.exception.RessourceIntrouvableException;
+import com.causebugmlops.erp.exception.TransitionStatutInvalideException;
 import com.causebugmlops.erp.repository.DemandeAchatInterneRepository;
 import com.causebugmlops.erp.repository.PoNumeroCompteurRepository;
 import com.causebugmlops.erp.repository.PurchaseOrderRepository;
@@ -35,19 +37,19 @@ public class PurchaseOrderService {
      * PO_GENERE ne serait pas enregistre. Ici, chargement et generation partagent la
      * meme transaction (l'appel interne est couvert par la transaction de cette methode).
      *
-     * @throws IllegalArgumentException si la demande n'existe pas
+     * @throws RessourceIntrouvableException si la demande n'existe pas
      */
     @Transactional
     public PurchaseOrder genererDepuisDemande(UUID demandeId) {
         DemandeAchatInterne demande = demandeRepository.findById(demandeId)
-                .orElseThrow(() -> new IllegalArgumentException("Demande introuvable: " + demandeId));
+                .orElseThrow(() -> new RessourceIntrouvableException("Demande", demandeId));
         return genererDepuisDemande(demande);
     }
 
     @Transactional
     public PurchaseOrder genererDepuisDemande(DemandeAchatInterne demande) {
         if (demande.getStatut() != StatutDemande.VALIDEE_DG && demande.getStatut() != StatutDemande.APPROUVEE) {
-            throw new IllegalStateException("Statut invalide pour generation PO: " + demande.getStatut());
+            throw new TransitionStatutInvalideException("Statut invalide pour generation PO: " + demande.getStatut(), demande.getStatut());
         }
 
         Fournisseur fournisseurSelectionne = demande.getFournisseurSelectionne();

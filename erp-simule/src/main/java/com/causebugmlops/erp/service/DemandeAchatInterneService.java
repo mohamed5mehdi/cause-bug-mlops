@@ -10,6 +10,8 @@ import com.causebugmlops.erp.domain.demande.LigneDemande;
 import com.causebugmlops.erp.domain.fournisseur.Fournisseur;
 import com.causebugmlops.erp.domain.utilisateur.Utilisateur;
 import com.causebugmlops.erp.dto.LigneDemandeDto;
+import com.causebugmlops.erp.exception.RessourceIntrouvableException;
+import com.causebugmlops.erp.exception.TransitionStatutInvalideException;
 import com.causebugmlops.erp.repository.ArticleRepository;
 import com.causebugmlops.erp.repository.DemandeAchatInterneRepository;
 import com.causebugmlops.erp.repository.FournisseurRepository;
@@ -53,7 +55,7 @@ public class DemandeAchatInterneService {
                 LigneDemande ld = LigneDemande.builder()
                         .demandeAchat(demande)
                         .article(dto.articleId() != null ? articleRepository.findById(dto.articleId())
-                                .orElseThrow(() -> new IllegalArgumentException("Article introuvable: " + dto.articleId())) : null)
+                                .orElseThrow(() -> new RessourceIntrouvableException("Article", dto.articleId())) : null)
                         .designationLibre(dto.designationLibre())
                         .specification(dto.specification())
                         .quantite(dto.quantite())
@@ -72,7 +74,7 @@ public class DemandeAchatInterneService {
     public DemandeAchatInterne soumettre(UUID id) {
         DemandeAchatInterne demande = getDemandeOrThrow(id);
         if (demande.getStatut() != StatutDemande.BROUILLON) {
-            throw new IllegalStateException("Seule une demande au statut BROUILLON peut etre soumise. Statut actuel: " + demande.getStatut());
+            throw new TransitionStatutInvalideException("Seule une demande au statut BROUILLON peut etre soumise. Statut actuel: " + demande.getStatut(), demande.getStatut());
         }
 
         demande.setStatut(StatutDemande.SOUMISE);
@@ -85,7 +87,7 @@ public class DemandeAchatInterneService {
     public void validerN1(UUID id, boolean valider, Utilisateur valideur, String commentaire) {
         DemandeAchatInterne demande = getDemandeOrThrow(id);
         if (demande.getStatut() != StatutDemande.SOUMISE) {
-            throw new IllegalStateException("Seule une demande au statut SOUMISE peut etre validee par N+1. Statut actuel: " + demande.getStatut());
+            throw new TransitionStatutInvalideException("Seule une demande au statut SOUMISE peut etre validee par N+1. Statut actuel: " + demande.getStatut(), demande.getStatut());
         }
 
         if (valider) {
@@ -118,11 +120,11 @@ public class DemandeAchatInterneService {
         DemandeAchatInterne demande = getDemandeOrThrow(id);
 
         if (demande.getStatut() != StatutDemande.VALIDEE_TECHNIQUE) {
-            throw new IllegalStateException("Seule une demande au statut VALIDEE_TECHNIQUE peut etre valorisee. Statut actuel: " + demande.getStatut());
+            throw new TransitionStatutInvalideException("Seule une demande au statut VALIDEE_TECHNIQUE peut etre valorisee. Statut actuel: " + demande.getStatut(), demande.getStatut());
         }
 
         Fournisseur fournisseur = fournisseurRepository.findById(fournisseurId)
-                .orElseThrow(() -> new IllegalArgumentException("Fournisseur introuvable: " + fournisseurId));
+                .orElseThrow(() -> new RessourceIntrouvableException("Fournisseur", fournisseurId));
 
         if (lignesPrix != null && demande.getLignes() != null) {
             for (LigneDemandeDto dto : lignesPrix) {
@@ -219,7 +221,7 @@ public class DemandeAchatInterneService {
         DemandeAchatInterne demande = getDemandeOrThrow(id);
 
         if (demande.getStatut() != StatutDemande.EN_VALORISATION) {
-            throw new IllegalStateException("Le statut doit etre EN_VALORISATION pour validerAmg. Statut actuel: " + demande.getStatut());
+            throw new TransitionStatutInvalideException("Le statut doit etre EN_VALORISATION pour validerAmg. Statut actuel: " + demande.getStatut(), demande.getStatut());
         }
 
         if (valider) {
@@ -239,7 +241,7 @@ public class DemandeAchatInterneService {
     public void validerDaf(UUID id, boolean valider, Utilisateur valideur, String commentaire) {
         DemandeAchatInterne demande = getDemandeOrThrow(id);
         if (demande.getStatut() != StatutDemande.VALIDEE_AMG) {
-            throw new IllegalStateException("Le statut doit etre VALIDEE_AMG pour validerDaf. Statut actuel: " + demande.getStatut());
+            throw new TransitionStatutInvalideException("Le statut doit etre VALIDEE_AMG pour validerDaf. Statut actuel: " + demande.getStatut(), demande.getStatut());
         }
 
         if (valider) {
@@ -260,7 +262,7 @@ public class DemandeAchatInterneService {
         DemandeAchatInterne demande = getDemandeOrThrow(demandeId);
 
         if (demande.getStatut() != StatutDemande.VALIDEE_DAF) {
-            throw new IllegalStateException("Le statut doit etre VALIDEE_DAF pour validerDg. Actuel: " + demande.getStatut());
+            throw new TransitionStatutInvalideException("Le statut doit etre VALIDEE_DAF pour validerDg. Actuel: " + demande.getStatut(), demande.getStatut());
         }
 
         demande.setStatut(StatutDemande.VALIDEE_DG);
@@ -282,6 +284,6 @@ public class DemandeAchatInterneService {
 
     private DemandeAchatInterne getDemandeOrThrow(UUID id) {
         return demandeRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Demande introuvable: " + id));
+                .orElseThrow(() -> new RessourceIntrouvableException("Demande", id));
     }
 }
