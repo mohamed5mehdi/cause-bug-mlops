@@ -1,0 +1,110 @@
+### ==========================================================================
+### Parcours complet d'une demande d'Achat Interne : BROUILLON -> PO_GENERE
+###
+### Format : extension REST Client (VS Code et derives). Executer les requetes
+### dans l'ordre (lien "Send Request" au-dessus de chaque bloc).
+### Prerequis : pile lancee par `docker compose up -d --build` (profil demo).
+### Identifiants : donnees de demonstration de la base locale
+###   demandeur = 1, manager N+1 = 3, AMG = 6, DAF = 7,
+###   fournisseur = 1, sous-famille INFO-MAT = 1.
+### ==========================================================================
+
+@base = http://localhost:8080/api/demandes
+
+### 1. Creation (BROUILLON)
+# @name creation
+POST {{base}}
+Content-Type: application/json
+X-Utilisateur-Id: 1
+X-Request-Id: parcours-01
+
+{
+  "justification": "Postes de travail equipe projet",
+  "lignes": [
+    { "designationLibre": "Ordinateur portable", "quantite": 2 },
+    { "designationLibre": "Ecran 27 pouces", "quantite": 1 }
+  ]
+}
+
+@id = {{creation.response.body.$.id}}
+@ligne1 = {{creation.response.body.$.lignes[0].id}}
+@ligne2 = {{creation.response.body.$.lignes[1].id}}
+
+### 2. Soumission (SOUMISE)
+POST {{base}}/{{id}}/soumission
+X-Request-Id: parcours-02
+
+### 3. Validation N+1 (VALIDEE_N1)
+POST {{base}}/{{id}}/validation-n1
+Content-Type: application/json
+X-Utilisateur-Id: 3
+X-Request-Id: parcours-03
+
+{ "valider": true, "commentaire": "Besoin confirme" }
+
+### 4. Validation technique (VALIDEE_TECHNIQUE)
+POST {{base}}/{{id}}/validation-technique
+X-Request-Id: parcours-04
+
+### 5. Valorisation acheteur : 3 x 800 HT, TVA 20 % -> 2 880 TTC engages sur INFO-MAT
+POST {{base}}/{{id}}/valorisation
+Content-Type: application/json
+X-Request-Id: parcours-05
+
+{
+  "tauxTva": 0.20,
+  "fournisseurId": 1,
+  "sousFamilleId": 1,
+  "prix": [
+    { "ligneId": {{ligne1}}, "prixUnitaireHt": 800 },
+    { "ligneId": {{ligne2}}, "prixUnitaireHt": 800 }
+  ]
+}
+
+### 6. Validation AMG (VALIDEE_AMG)
+POST {{base}}/{{id}}/validation-amg
+Content-Type: application/json
+X-Utilisateur-Id: 6
+X-Request-Id: parcours-06
+
+{ "valider": true }
+
+### 7. Validation DAF (VALIDEE_DAF)
+POST {{base}}/{{id}}/validation-daf
+Content-Type: application/json
+X-Utilisateur-Id: 7
+X-Request-Id: parcours-07
+
+{ "valider": true }
+
+### 8. Validation DG (VALIDEE_DG)
+POST {{base}}/{{id}}/validation-dg
+X-Request-Id: parcours-08
+
+### 9. Generation du Purchase Order (201, PO_GENERE)
+POST {{base}}/{{id}}/purchase-order
+X-Request-Id: parcours-09
+
+### 10. Relecture de la demande
+GET {{base}}/{{id}}
+X-Request-Id: parcours-10
+
+### --------------------------------------------------------------------------
+### Erreurs lisibles (ProblemDetail, ADR-008)
+### --------------------------------------------------------------------------
+
+### 409 : action hors sequence (la demande est deja PO_GENERE)
+POST {{base}}/{{id}}/validation-dg
+X-Request-Id: erreur-409
+
+### 404 : demande inexistante
+GET {{base}}/00000000-0000-4000-8000-000000000000
+X-Request-Id: erreur-404
+
+### 400 : formulaire incomplet (liste des champs en erreur)
+POST {{base}}
+Content-Type: application/json
+X-Utilisateur-Id: 1
+X-Request-Id: erreur-400
+
+{ "justification": "", "lignes": [] }

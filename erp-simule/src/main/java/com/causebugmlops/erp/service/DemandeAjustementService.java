@@ -1,6 +1,7 @@
 package com.causebugmlops.erp.service;
 
 import com.causebugmlops.erp.domain.ajustement.DemandeAjustement;
+import com.causebugmlops.erp.domain.common.DecisionValidation;
 import com.causebugmlops.erp.domain.common.EtapeValidation;
 import com.causebugmlops.erp.domain.common.StatutAjustement;
 import com.causebugmlops.erp.domain.common.StatutDemande;
@@ -28,18 +29,20 @@ public class DemandeAjustementService {
     private final HistoriqueValidationService historiqueValidationService;
 
     @Transactional
-    public DemandeAjustement soumettreAjustement(UUID demandeId, TypeAjustement type, BigDecimal montant, Long sourceSfId, Long cibleSfId, Long familleId, Utilisateur acheteur, String justification) {
+    public DemandeAjustement soumettreAjustement(UUID demandeId, TypeAjustement type, BigDecimal montant,
+            Long sourceSfId, Long cibleSfId, Long familleId, Utilisateur acheteur, String justification) {
         DemandeAchatInterne demande = demandeRepository.findById(demandeId).orElseThrow();
 
         // Règle 15 : Garde anti-doublon via repository
         boolean hasActive = ajustementRepository.existsByDemandeInterneIdAndStatutIn(demandeId,
-                List.of(StatutAjustement.EN_ATTENTE_DAF, StatutAjustement.EN_ATTENTE_DG, StatutAjustement.EN_ATTENTE_ACHETEUR, StatutAjustement.EN_ATTENTE_AMG));
+                List.of(StatutAjustement.EN_ATTENTE_DAF, StatutAjustement.EN_ATTENTE_DG,
+                        StatutAjustement.EN_ATTENTE_ACHETEUR, StatutAjustement.EN_ATTENTE_AMG));
         if (hasActive) {
             throw new IllegalStateException("Un ajustement actif existe déjà pour cette demande.");
         }
 
         StatutDemande statutAvant = demande.getStatut();
-        
+
         if (type == TypeAjustement.SOUS_FAMILLE) {
             demande.setStatut(StatutDemande.AJUSTEMENT_SOUS_FAMILLE_EN_COURS);
             demande.setTypeAjustement(type);
@@ -53,7 +56,8 @@ public class DemandeAjustementService {
         DemandeAjustement ajustement = DemandeAjustement.builder()
                 .demandeInterne(demande)
                 .type(type)
-                .statut(type == TypeAjustement.SOUS_FAMILLE ? StatutAjustement.EN_ATTENTE_DAF : StatutAjustement.EN_ATTENTE_DG)
+                .statut(type == TypeAjustement.SOUS_FAMILLE ? StatutAjustement.EN_ATTENTE_DAF
+                        : StatutAjustement.EN_ATTENTE_DG)
                 .sourceSousFamilleId(sourceSfId)
                 .cibleSousFamilleId(cibleSfId)
                 .familleCibleId(familleId)
@@ -67,7 +71,8 @@ public class DemandeAjustementService {
         demandeRepository.save(demande);
         DemandeAjustement savedAjustement = ajustementRepository.save(ajustement);
 
-        historiqueValidationService.enregistrerDecision(demande, acheteur, EtapeValidation.ACHETEUR, "SOUMISSION_AJUSTEMENT", justification);
+        historiqueValidationService.enregistrerDecision(demande, acheteur, EtapeValidation.ACHETEUR,
+                DecisionValidation.SOUMISSION_AJUSTEMENT, justification);
 
         return savedAjustement;
     }
@@ -82,7 +87,8 @@ public class DemandeAjustementService {
         decider(ajustementId, decision, valideur, justification, StatutAjustement.EN_ATTENTE_DG);
     }
 
-    private void decider(Long ajustementId, String decision, Utilisateur valideur, String justification, StatutAjustement expectedStatut) {
+    private void decider(Long ajustementId, String decision, Utilisateur valideur, String justification,
+            StatutAjustement expectedStatut) {
         DemandeAjustement ajustement = ajustementRepository.findById(ajustementId).orElseThrow();
         if (ajustement.getStatut() != expectedStatut) {
             throw new IllegalStateException("Statut inattendu: " + ajustement.getStatut());
@@ -95,7 +101,8 @@ public class DemandeAjustementService {
         DemandeAchatInterne demande = ajustement.getDemandeInterne();
 
         if ("VALIDE".equals(decision)) {
-            // Règle 17 : Injection budget Famille si type FAMILLE avant restauration du statut
+            // Règle 17 : Injection budget Famille si type FAMILLE avant restauration du
+            // statut
             if (ajustement.getType() == TypeAjustement.FAMILLE) {
                 budgetService.ajusterFamille(ajustement.getFamilleCibleId(), ajustement.getMontantDemande());
             }
@@ -107,7 +114,8 @@ public class DemandeAjustementService {
             demande.setStatut(StatutDemande.BROUILLON);
             if (ajustement.getType() == TypeAjustement.SOUS_FAMILLE) {
                 // Restaure le budget
-                budgetService.ajusterSousFamille(ajustement.getCibleSousFamilleId(), ajustement.getSourceSousFamilleId(), ajustement.getMontantDemande());
+                budgetService.ajusterSousFamille(ajustement.getCibleSousFamilleId(),
+                        ajustement.getSourceSousFamilleId(), ajustement.getMontantDemande());
             }
         } else {
             throw new IllegalArgumentException("Decision invalide: " + decision);
@@ -116,8 +124,10 @@ public class DemandeAjustementService {
         ajustementRepository.save(ajustement);
         demandeRepository.save(demande);
 
-        EtapeValidation etape = expectedStatut == StatutAjustement.EN_ATTENTE_DAF ? EtapeValidation.DAF : EtapeValidation.DG;
-        historiqueValidationService.enregistrerDecision(demande, valideur, etape, decision, justification);
+        EtapeValidation etape = expectedStatut == StatutAjustement.EN_ATTENTE_DAF ? EtapeValidation.DAF
+                : EtapeValidation.DG;
+        // decision vaut ici "VALIDE" ou "REJETE" : toute autre valeur a ete refusee plus haut.
+        historiqueValidationService.enregistrerDecision(demande, valideur, etape, DecisionValidation.valueOf(decision), justification);
     }
 
     @Transactional
@@ -137,7 +147,8 @@ public class DemandeAjustementService {
         demandeRepository.save(demande);
 
         Utilisateur acteur = acheteur != null ? acheteur : ajustement.getAcheteur();
-        historiqueValidationService.enregistrerDecision(demande, acteur, EtapeValidation.ACHETEUR, "CONFIRMATION", justification);
+        historiqueValidationService.enregistrerDecision(demande, acteur, EtapeValidation.ACHETEUR, DecisionValidation.CONFIRMATION,
+                justification);
     }
 
     @Transactional
@@ -152,6 +163,7 @@ public class DemandeAjustementService {
         ajustementRepository.save(ajustement);
 
         DemandeAchatInterne demande = ajustement.getDemandeInterne();
-        historiqueValidationService.enregistrerDecision(demande, validateurAmg, EtapeValidation.AMG, "FINALISATION", "Ajustement budgétaire finalisé");
+        historiqueValidationService.enregistrerDecision(demande, validateurAmg, EtapeValidation.AMG, DecisionValidation.FINALISATION,
+                "Ajustement budgétaire finalisé");
     }
 }

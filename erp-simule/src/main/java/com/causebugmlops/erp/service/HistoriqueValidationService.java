@@ -10,6 +10,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Ecrit la piste d'audit fonctionnelle des decisions du workflow.
+ * <p>
+ * La decision est typee ({@link DecisionValidation}) : l'ancienne variante qui
+ * recevait un texte et convertissait toute valeur inconnue en VALIDE (defaut E5)
+ * est supprimee (ADR-009).
+ */
 @Service
 @RequiredArgsConstructor
 public class HistoriqueValidationService {
@@ -27,16 +34,5 @@ public class HistoriqueValidationService {
                 .businessCorrelationId(demande.getId())
                 .build();
         repository.save(h);
-    }
-
-    @Transactional
-    public void enregistrerDecision(DemandeAchatInterne demande, Utilisateur acteur, EtapeValidation etape, String decisionStr, String commentaire) {
-        DecisionValidation decision;
-        try {
-            decision = DecisionValidation.valueOf(decisionStr);
-        } catch (Exception e) {
-            decision = DecisionValidation.VALIDE;
-        }
-        enregistrerDecision(demande, acteur, etape, decision, commentaire);
     }
 }

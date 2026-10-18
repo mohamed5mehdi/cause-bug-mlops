@@ -249,3 +249,46 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
     saisies par le client (risque d'injection dans les logs) ; à durcir.
   - Donnée de démonstration ajoutée : une demande « Licences logicielles annuelles »
     au statut `VALIDEE_TECHNIQUE` (scénario 422).
+
+---
+
+## ADR-009 — Correction E5 (décision typée) et test du parcours HTTP (J2d)
+
+- **Date** : 2026-10-18
+- **Statut** : accepté
+- **Contexte** : `HistoriqueValidationService.enregistrerDecision(..., String, ...)`
+  convertissait toute décision inconnue en `VALIDE`. Le défaut touchait tout le flux
+  d'ajustement budgétaire : `DemandeAjustementService` enregistrait
+  `"SOUMISSION_AJUSTEMENT"`, `"CONFIRMATION"` et `"FINALISATION"`, absentes de
+  l'énumération, donc tracées « VALIDE » : la piste d'audit mentait sans erreur.
+  Par ailleurs, le parcours HTTP de J2b n'était vérifié qu'à la main.
+- **Décision** (option B) :
+  - `DecisionValidation` reçoit `SOUMISSION_AJUSTEMENT`, `CONFIRMATION`, `FINALISATION`.
+  - La surcharge `String` est supprimée : tous les appelants passent l'énumération ;
+    `decider()` convertit avec `valueOf` un texte déjà restreint à VALIDE / REJETE.
+    Une décision inconnue ne compile plus.
+  - Aucune migration : `historique_validation.decision` est un `VARCHAR(30)` sans
+    contrainte CHECK (valeur la plus longue : 21 caractères). Les lignes déjà écrites
+    ne sont pas réécrites.
+  - `ParcoursDemandeAchatHttpTest` : parcours BROUILLON → PO_GENERE via MockMvc sur la
+    pile réelle (Testcontainers PostgreSQL 16, profil `demo`), puis contrôles en base.
+  - `erp-simule/http/parcours-demande-achat.http` : même parcours, rejouable dans l'IDE.
+- **Alternatives écartées** : option A (lever une exception sur texte inconnu) : le
+  flux d'ajustement aurait échoué à chaque appel.
+- **Conséquences (vérifiées)** :
+  - `test-compile` OK ; tests exécutés par Mehdi sur une copie hors espace de travail :
+    19/19 (parcours 1, gestionnaire d'erreurs 9, filtre 6, démarrage 3), BUILD SUCCESS.
+  - Le test de parcours prouve : 2 880,00 engagés exactement sur INFO-MAT (3 × 800 HT,
+    TVA 20 %), PO à 2 880,00 TTC, historique `N1:VALIDE`, `AMG:VALIDE`, `DAF:VALIDE`,
+    puis 409 `TRANSITION_STATUT_INVALIDE` sur une validation DG rejouée.
+  - Le scénario de panne P3 (T1a) n'est pas corrigé ; sa trace d'audit porte désormais
+    `CONFIRMATION` au lieu d'un faux `VALIDE`.
+  - Le test fige le défaut E7 connu (aucune trace pour les étapes technique et DG) :
+    à mettre à jour quand E7 sera corrigé.
+  - Pas de test d'exécution du flux d'ajustement (non exposé en HTTP, test de constat
+    dépendant d'une base externe) : la non-régression d'E5 repose sur le typage.
+  - Constat annexe : `StockGovernanceConcurrencyIT` n'est jamais exécuté par
+    `mvn test` (suffixe `IT` sans plugin failsafe).
+  - Revue : la CLI Qodo n'est pas installée sur la machine ; relecture manuelle sur
+    5 axes (correction, lisibilité, architecture, sécurité, performance), sans point
+    bloquant. Le diff de `DemandeAjustementService` inclut un reformatage par l'IDE.

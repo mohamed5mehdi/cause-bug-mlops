@@ -92,12 +92,12 @@ public class DemandeAchatInterneService {
 
         if (valider) {
             demande.setStatut(StatutDemande.VALIDEE_N1);
-            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.N1, DecisionValidation.VALIDE.name(), commentaire);
+            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.N1, DecisionValidation.VALIDE, commentaire);
         } else {
             demande.setStatut(StatutDemande.REJETEE);
             demande.setEtapeRejet(EtapeValidation.N1);
             demande.setMotifRejet(commentaire);
-            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.N1, DecisionValidation.REJETE.name(), commentaire);
+            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.N1, DecisionValidation.REJETE, commentaire);
         }
 
         demandeRepository.save(demande);
@@ -226,12 +226,12 @@ public class DemandeAchatInterneService {
 
         if (valider) {
             demande.setStatut(StatutDemande.VALIDEE_AMG);
-            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.AMG, DecisionValidation.VALIDE.name(), commentaire);
+            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.AMG, DecisionValidation.VALIDE, commentaire);
         } else {
             demande.setStatut(StatutDemande.REJETEE);
             demande.setEtapeRejet(EtapeValidation.AMG);
             demande.setMotifRejet(commentaire);
-            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.AMG, DecisionValidation.REJETE.name(), commentaire);
+            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.AMG, DecisionValidation.REJETE, commentaire);
         }
 
         demandeRepository.save(demande);
@@ -246,12 +246,12 @@ public class DemandeAchatInterneService {
 
         if (valider) {
             demande.setStatut(StatutDemande.VALIDEE_DAF);
-            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.DAF, DecisionValidation.VALIDE.name(), commentaire);
+            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.DAF, DecisionValidation.VALIDE, commentaire);
         } else {
             demande.setStatut(StatutDemande.REJETEE);
             demande.setEtapeRejet(EtapeValidation.DAF);
             demande.setMotifRejet(commentaire);
-            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.DAF, DecisionValidation.REJETE.name(), commentaire);
+            historiqueValidationService.enregistrerDecision(demande, valideur, EtapeValidation.DAF, DecisionValidation.REJETE, commentaire);
         }
 
         demandeRepository.save(demande);
@@ -277,7 +277,7 @@ public class DemandeAchatInterneService {
         demande.setEtapeRejet(etape);
         demande.setMotifRejet(motif);
 
-        historiqueValidationService.enregistrerDecision(demande, acteur, etape, DecisionValidation.REJETE.name(), motif);
+        historiqueValidationService.enregistrerDecision(demande, acteur, etape, DecisionValidation.REJETE, motif);
 
         demandeRepository.save(demande);
     }
