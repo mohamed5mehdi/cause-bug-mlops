@@ -142,3 +142,31 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
 - **Conséquences** : « ERP » n'est plus utilisé pour désigner le système observé
   (seul cet ADR le mentionne, pour l'écarter) ; les
   identifiants `erp*` restent visibles dans le code et la configuration.
+
+---
+
+## ADR-006 — Première API REST (J2a) : création et lecture d'une demande
+
+- **Date** : 2026-10-18
+- **Statut** : accepté
+- **Contexte** : le simulateur n'exposait aucun point d'entrée HTTP ; la couche service
+  existait mais n'était appelable que par les tests.
+- **Décision** :
+  - Package `api` (contrôleurs) et `api.dto` (formulaires et réponses), séparés du
+    `dto` déjà utilisé par la couche service.
+  - DTO en `record` Java : immuables, sans logique ; l'entité JPA n'est jamais exposée.
+  - Validation de forme par Jakarta Bean Validation sur le DTO (`@Valid`) : une requête
+    mal remplie est refusée en 400 avant tout appel au service. Les règles de fond
+    (budget, statut) restent dans le service.
+  - Lecture via `findDetailById` annoté `@EntityGraph` (demandeur, lignes, articles
+    chargés en une requête), nécessaire car `open-in-view` est désactivé.
+  - Acteur identifié par l'en-tête `X-Utilisateur-Id` : identification simulée, pas une
+    authentification (limite assumée du MVP).
+- **Alternatives écartées** : exposer l'entité (chargements lazy hors session) ;
+  `@Transactional` dans le contrôleur (mélange des responsabilités) ; Spring Security
+  dès maintenant (hors périmètre MVP).
+- **Conséquences** : vérifié sur la pile Compose — POST valide → 201 + `Location`,
+  GET → 200, `quantite = 0` → 400 (`Positive` sur `lignes[0].quantite`), en-tête absent
+  → 400, utilisateur ou demande inconnus → 404 ; une seule demande créée en base.
+  Le corps des erreurs reste le format Spring par défaut, sans détail lisible : traité
+  à J2c (`ProblemDetail`).
