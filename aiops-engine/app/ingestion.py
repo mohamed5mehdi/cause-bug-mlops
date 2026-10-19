@@ -19,6 +19,7 @@ from contextlib import suppress
 import asyncpg
 
 from app.config import Parametres
+from app.connaissance import Vectoriseur
 from app.db import ouvrir_connexion
 
 LOG = logging.getLogger(__name__)
@@ -69,13 +70,25 @@ async def rattraper(pool: asyncpg.Pool) -> int:
 class EcouteurTraces:
     """Tache de fond : ecoute le canal, copie les traces, se reconnecte seule."""
 
-    def __init__(self, parametres: Parametres, pool: asyncpg.Pool) -> None:
+    def __init__(self, parametres: Parametres, pool: asyncpg.Pool,
+                 vectoriseur: Vectoriseur | None = None) -> None:
         self._parametres = parametres
         self._pool = pool
+        self._vectoriseur = vectoriseur
         self._arret = asyncio.Event()
         self._tache: asyncio.Task[None] | None = None
+        self._taches_vectorisation: set[asyncio.Task[None]] = set()
         self.connecte = False
         self.traces_ingerees = 0
+
+    def _declencher_vectorisation(self) -> None:
+        """Lance la vectorisation des nouveaux echecs en tache de fond (sans attendre l'API)."""
+        if self._vectoriseur is None:
+            return
+        tache = asyncio.create_task(self._vectoriseur.rattraper())
+        # Garder une reference : asyncio ne conserve qu'une reference faible aux taches.
+        self._taches_vectorisation.add(tache)
+        tache.add_done_callback(self._taches_vectorisation.discard)
 
     async def demarrer(self) -> None:
         self._tache = asyncio.create_task(self._boucle(), name="ecouteur-traces")
@@ -102,6 +115,7 @@ class EcouteurTraces:
                 self.traces_ingerees += rattrapees
                 LOG.info("Ecoute du canal '%s' active ; rattrapage : %d trace(s)",
                          self._parametres.canal_traces, rattrapees)
+                self._declencher_vectorisation()
                 delai_s = 1.0
                 await perdue.wait()
                 LOG.warning("Connexion d'ecoute perdue")
@@ -126,5 +140,6 @@ class EcouteurTraces:
         try:
             if await copier_trace(self._pool, source_id):
                 self.traces_ingerees += 1
+                self._declencher_vectorisation()
         except Exception:
             LOG.exception("Copie de la trace %d impossible", source_id)

@@ -57,6 +57,8 @@ services:
       DB_NAME: causebugmlops
       DB_USER: aiops_reader
       DB_PASSWORD: ${AIOPS_READER_PASSWORD:?AIOPS_READER_PASSWORD manquant dans .env}
+      # Facultative : sans cle, aiops-engine demarre mais la vectorisation est INACTIVE.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports:
       - "${AIOPS_HOST_PORT:-8000}:8000"
 

@@ -22,3 +22,24 @@ CREATE TABLE IF NOT EXISTS aiops.transaction_trace_event (
 
 CREATE INDEX IF NOT EXISTS idx_tte_correlation
     ON aiops.transaction_trace_event (business_correlation_id, debut);
+
+-- Base de connaissance vectorielle (ADR-012) : un vecteur de 768 nombres par
+-- document (trace d'echec, puis regle metier a J6). "modele" garde le nom du
+-- modele d'embedding : les vecteurs de deux modeles differents ne sont pas
+-- comparables entre eux.
+CREATE TABLE IF NOT EXISTS aiops.document_vectorise (
+    id            BIGSERIAL PRIMARY KEY,
+    type_document VARCHAR(30)  NOT NULL,
+    reference     VARCHAR(100) NOT NULL,
+    texte         TEXT         NOT NULL,
+    modele        VARCHAR(60)  NOT NULL,
+    embedding     vector(768)  NOT NULL,
+    cree_le       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    -- Un vecteur par document ET par modele : changer de modele n'efface rien.
+    CONSTRAINT uq_document_vectorise UNIQUE (type_document, reference, modele)
+);
+
+-- Index HNSW (recherche approximative rapide des plus proches voisins).
+-- vector_cosine_ops : la recherche DOIT utiliser l'operateur <=> (distance cosinus).
+CREATE INDEX IF NOT EXISTS idx_document_vectorise_hnsw
+    ON aiops.document_vectorise USING hnsw (embedding vector_cosine_ops);

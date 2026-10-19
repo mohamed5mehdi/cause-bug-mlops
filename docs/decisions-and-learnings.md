@@ -390,3 +390,48 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   - FastAPI répond 422 (et non 400) à un paramètre invalide : convention FastAPI, différente
     du simulateur Java ;
   - le compteur `traces_ingerees` de `/health` est en mémoire, remis à zéro au redémarrage.
+
+---
+
+## ADR-012 — Embeddings gemini-embedding-2 et base de connaissance pgvector (J5)
+
+- **Date** : 2026-10-19
+- **Statut** : accepté
+- **Contexte** : le diagnostic RAG (J6) doit retrouver, par le sens, les incidents passés et
+  les règles métier proches d'une panne. La documentation Gemini (mise à jour le 2026-10-09,
+  consultée le 2026-10-19) présente un modèle plus récent que celui noté le 2026-10-16 :
+  `gemini-embedding-2`, qui normalise lui-même les vecteurs de 768, n'accepte pas de
+  `task_type` (préfixes dans le texte) et fusionne en UN vecteur plusieurs textes envoyés
+  dans un même appel. Les espaces vectoriels des deux modèles sont incompatibles.
+- **Décision** :
+  - Modèle `gemini-embedding-2`, dimension 768, SDK officiel `google-genai` 2.31.0, client
+    asynchrone ; **un texte par appel** (pas de fusion involontaire) ; normalisation L2
+    appliquée quand même ; dimension vérifiée (≠ 768 → erreur explicite).
+  - Préfixes : documents `title: … | text: …`, requêtes `task: search result | query: …`.
+  - Seules les traces **ECHEC** sont vectorisées (les règles métier suivront à J6).
+  - Table `aiops.document_vectorise` (`vector(768)`), unicité (type, référence, **modèle**),
+    index **HNSW `vector_cosine_ops`** ; recherche par `<=>`, l'opérateur de l'index.
+    Similarité affichée = 1 − distance cosinus.
+  - Vectorisation en tâche de fond après chaque copie et à chaque reconnexion, sous verrou,
+    idempotente ; interrompue à la première erreur d'API, reprise au déclenchement suivant.
+  - Clé facultative : sans `GEMINI_API_KEY`, l'ingestion continue et `/health` indique
+    `vectorisation: INACTIVE`. Route `GET /recherche?q=…&k=…` (503 si inactive).
+- **Alternatives écartées** :
+  - `gemini-embedding-001` : normalisation manuelle obligatoire, entrée limitée à 2 048 tokens ;
+  - vectoriser toutes les traces : coût d'API sans valeur de diagnostic pour les succès ;
+  - bibliothèque Python `pgvector` : inutile, le littéral texte `'[x,…]'::vector` suffit.
+- **Conséquences (vérifiées)** :
+  - pytest : 20/20 (dont 2 tests contre la vraie API), deux passages consécutifs verts.
+  - Faux modèle à géométrie connue : seuls les échecs sont vectorisés, idempotence, et le
+    plan d'exécution montre l'usage de `idx_document_vectorise_hnsw`.
+  - API réelle : vecteurs de 768, norme 1 ; un vrai 422 budget du simulateur est retrouvé
+    par `/recherche` avec une question reformulée.
+  - Mesure sur la pile : « l'enveloppe budgétaire ne couvre pas le montant de la commande »
+    → 0,755 avec l'échec budget ; « recette de gâteau au chocolat » → 0,512 avec le même
+    document. Une phrase sans rapport n'est donc pas proche de 0 : il faut **comparer** les
+    similarités, pas fixer un seuil absolu sans calibration (à faire à J9).
+  - Leçon de test : avec une base partagée, un test ne doit pas supposer un rang exact ; le
+    test à faux modèle vérifie désormais une propriété et nettoie aussi les vecteurs
+    éventuellement créés par le service en marche.
+- **Limites connues** : quotas et tarif de l'API non vérifiés (avant J9) ; plusieurs
+  déclenchements simultanés de vectorisation s'enchaînent sous verrou (suffisant au MVP).

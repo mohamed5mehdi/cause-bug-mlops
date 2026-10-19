@@ -35,3 +35,14 @@ class EtatSante(BaseModel):
     base: bool
     ecoute: bool
     traces_ingerees: int
+    vectorisation: Literal["ACTIVE", "INACTIVE"]
+    documents_vectorises: int
+
+
+class DocumentSimilaire(BaseModel):
+    """Un document de la base de connaissance et sa proximite de sens avec la requete."""
+
+    type_document: str
+    reference: str
+    texte: str
+    similarite: float
