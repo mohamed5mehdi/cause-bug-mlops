@@ -1,8 +1,10 @@
 """Point d'entree FastAPI d'aiops-engine (equivalent de la classe @SpringBootApplication)."""
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
@@ -10,11 +12,12 @@ import asyncpg
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 
 from app.config import Parametres
-from app.connaissance import Vectoriseur, rechercher_similaires
+from app.connaissance import Vectoriseur, lire_regles, rechercher_similaires, synchroniser_regles
 from app.db import creer_pool, preparer_schema
+from app.diagnostic import DossierSansTrace, ErreurDiagnostic, GenerateurGemini, diagnostiquer
 from app.embeddings import EmbeddingsGemini, ErreurEmbedding
 from app.ingestion import EcouteurTraces
-from app.modeles import DocumentSimilaire, EtatSante, TraceEvenement
+from app.modeles import ContexteUtilise, DiagnosticReponse, DocumentSimilaire, EtatSante, TraceEvenement
 from app.traces import lire_chronologie
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
@@ -30,13 +33,18 @@ async def cycle_de_vie(app: FastAPI) -> AsyncIterator[None]:
 
     embeddings: EmbeddingsGemini | None = None
     vectoriseur: Vectoriseur | None = None
+    generateur: GenerateurGemini | None = None
+    tache_regles: asyncio.Task[None] | None = None
     if parametres.gemini_api_key is not None and parametres.gemini_api_key.get_secret_value():
-        embeddings = EmbeddingsGemini(parametres.gemini_api_key.get_secret_value(),
-                                      parametres.modele_embedding)
+        cle = parametres.gemini_api_key.get_secret_value()
+        embeddings = EmbeddingsGemini(cle, parametres.modele_embedding)
         vectoriseur = Vectoriseur(pool, embeddings)
-        LOG.info("Vectorisation active (modele %s)", parametres.modele_embedding)
+        generateur = GenerateurGemini(cle, parametres.modele_diagnostic, parametres.modele_diagnostic_secours)
+        tache_regles = asyncio.create_task(_charger_regles(pool, embeddings, parametres.fichier_regles))
+        LOG.info("IA active (embeddings %s, diagnostic %s, secours %s)", parametres.modele_embedding,
+                 parametres.modele_diagnostic, parametres.modele_diagnostic_secours)
     else:
-        LOG.warning("GEMINI_API_KEY absente : ingestion seule, vectorisation inactive")
+        LOG.warning("GEMINI_API_KEY absente : ingestion seule, vectorisation et diagnostic inactifs")
 
     ecouteur = EcouteurTraces(parametres, pool, vectoriseur)
     await ecouteur.demarrer()
@@ -44,15 +52,30 @@ async def cycle_de_vie(app: FastAPI) -> AsyncIterator[None]:
     app.state.ecouteur = ecouteur
     app.state.embeddings = embeddings
     app.state.vectoriseur = vectoriseur
+    app.state.generateur = generateur
     LOG.info("aiops-engine demarre")
     try:
         yield
     finally:
         await ecouteur.arreter()
+        if tache_regles is not None and not tache_regles.done():
+            tache_regles.cancel()
         if embeddings is not None:
             await embeddings.fermer()
+        if generateur is not None:
+            await generateur.fermer()
         await pool.close()
         LOG.info("aiops-engine arrete")
+
+
+async def _charger_regles(pool: asyncpg.Pool, embeddings: EmbeddingsGemini, fichier: str) -> None:
+    """Vectorise le corpus de regles metier en tache de fond (sans bloquer le demarrage)."""
+    try:
+        regles = lire_regles(Path(fichier).read_text(encoding="utf-8"))
+        n = await synchroniser_regles(pool, embeddings, regles)
+        LOG.info("Regles metier : %d au corpus, %d (re)vectorisee(s)", len(regles), n)
+    except Exception:
+        LOG.exception("Chargement des regles metier impossible")
 
 
 app = FastAPI(title="aiops-engine", version="0.2.0", lifespan=cycle_de_vie)
@@ -92,6 +115,30 @@ async def sante(request: Request, response: Response, pool: Pool, ecouteur: Ecou
 async def chronologie(correlation_id: UUID, pool: Pool) -> list[TraceEvenement]:
     """Chronologie technique d'un dossier (businessCorrelationId = id de la demande)."""
     return await lire_chronologie(pool, correlation_id)
+
+
+@app.post("/diagnose/{correlation_id}", response_model=DiagnosticReponse)
+async def diagnose(request: Request, correlation_id: UUID, pool: Pool) -> DiagnosticReponse:
+    """Diagnostic de cause racine d'un dossier par RAG.
+    404 : aucune trace pour ce dossier ; 502 : le modele n'a pas fourni de reponse
+    exploitable ; 503 : IA inactive (cle Gemini absente)."""
+    embeddings: EmbeddingsGemini | None = request.app.state.embeddings
+    generateur: GenerateurGemini | None = request.app.state.generateur
+    if embeddings is None or generateur is None:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Diagnostic inactif (cle Gemini absente)")
+    try:
+        d = await diagnostiquer(pool, embeddings, generateur, correlation_id)
+    except DossierSansTrace as erreur:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Aucune trace pour ce dossier") from erreur
+    except ErreurDiagnostic as erreur:
+        LOG.warning("Diagnostic %s impossible : %s", correlation_id, erreur)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Diagnostic impossible : {erreur}") from erreur
+    return DiagnosticReponse(
+        business_correlation_id=d.business_correlation_id, cause_racine=d.cause_racine,
+        confiance=round(d.confiance, 3), composant=d.composant.value, preuves=d.preuves,
+        preuves_rejetees=d.preuves_rejetees, modele=d.modele, latence_ms=d.latence_ms,
+        contexte=ContexteUtilise(traces=d.nb_traces, incidents_similaires=d.nb_incidents,
+                                 regles_metier=d.nb_regles))
 
 
 @app.get("/recherche", response_model=list[DocumentSimilaire])

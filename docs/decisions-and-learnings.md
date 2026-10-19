@@ -435,3 +435,56 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
     éventuellement créés par le service en marche.
 - **Limites connues** : quotas et tarif de l'API non vérifiés (avant J9) ; plusieurs
   déclenchements simultanés de vectorisation s'enchaînent sous verrou (suffisant au MVP).
+
+---
+
+## ADR-013 — Diagnostic RAG : POST /diagnose avec Gemini et sortie structurée (J6)
+
+- **Date** : 2026-10-19
+- **Statut** : accepté
+- **Contexte** : cœur du projet. Documentation Gemini consultée le 2026-10-19 :
+  `generateContent` reste « entièrement supportée » ; l'Interactions API est recommandée
+  pour les nouveaux développements mais **stocke les échanges par défaut** ; pour les
+  nouveaux projets, la page *Models* recommande « 3.5 Flash-Lite ou 3.8 Flash » ; la page
+  *Structured outputs* demande de toujours valider les valeurs côté application.
+- **Décision** :
+  - `generate_content` (sans état, rien n'est conservé côté Google entre deux appels),
+    schéma Pydantic `DiagnosticGemini` en `response_schema` : `cause_racine`, `confiance`
+    ∈ [0 ; 1], `composant` ∈ {CODE_JAVA, BASE_DE_DONNEES, FLUX_METIER}, `preuves`.
+  - Modèle principal `gemini-3.8-flash`, secours `gemini-3.5-flash-lite` (configurables).
+  - **Résilience** : erreurs passagères (429, 500, 503) → 3 tentatives avec attente
+    croissante, puis bascule vers le secours ; erreur définitive (400, 401, 403, 404) →
+    échec immédiat. Le modèle réellement utilisé est enregistré.
+  - **Garde-fous** : `response.parsed is None` → échec explicite (avec `finish_reason`) ;
+    revalidation Pydantic des bornes ; chaque preuve citée doit exister dans le dossier,
+    sinon elle est retirée et comptée (signal d'hallucination).
+  - **Dossier d'enquête numéroté** : chronologie (T1…), état de la demande et piste
+    d'audit (lus en lecture seule dans `erp`), incidents passés proches (I1…, en excluant
+    les traces du dossier lui-même), règles métier proches (R-xx).
+  - **Corpus** : 12 règles rédigées à partir du code (`aiops-engine/connaissance/
+    regles-metier.md`, source citée pour chacune), vectorisées au démarrage en tâche de
+    fond ; une règle modifiée est revectorisée, une règle supprimée est retirée.
+  - Chaque diagnostic est enregistré dans `aiops.diagnostic` (résultat, modèle, latence,
+    jetons) pour l'évaluation (J9) et le tableau de bord.
+  - Codes : 404 sans trace, 502 si le modèle ne fournit pas de réponse exploitable,
+    503 si l'IA est inactive.
+- **Alternatives écartées** : Interactions API (stockage par défaut, réécriture de la
+  spécification) ; PDF métier comme corpus (risque de noms internes, emplacement inconnu) ;
+  un seul modèle sans secours (le 2026-10-19, `gemini-3.8-flash` répondait 503 « forte
+  demande » à chaque appel pendant les tests).
+- **Conséquences (vérifiées)** :
+  - pytest : 31/31, dont 13 nouveaux (découpage des 12 règles, garde-fous `parsed None`
+    et hors bornes, bascule 503 → secours, erreur 400 sans nouvelle tentative, preuves
+    inventées retirées, dossier sans trace, bout en bout réel).
+  - Bout en bout réel (refus budgétaire de 2 160 000 TTC sur INFO-LOG) : `FLUX_METIER`,
+    cause « montant disponible de la sous-famille inférieur au TTC lors de la
+    valorisation… refus conforme à la gouvernance budgétaire », preuves T5, T6, R-06, R-05,
+    I1 (toutes valides, 0 rejetée), modèle de secours après 3 × 503, 17,9 s, 1 418 jetons
+    en entrée et 128 en sortie.
+- **Limites connues** :
+  - confiance de 1,0 sur ce cas : le modèle peut être surconfiant ; calibration à J9 ;
+  - quand le principal est indisponible, les tentatives ajoutent ~6 s à chaque appel
+    (un disjoncteur mémorisant l'indisponibilité est une amélioration possible) ;
+  - recherche filtrée sur l'index HNSW : avec beaucoup de documents, un filtre peut
+    renvoyer moins de k résultats (à surveiller lors du passage à l'échelle) ;
+  - quotas de l'offre gratuite non vérifiés.

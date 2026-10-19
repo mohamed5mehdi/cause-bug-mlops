@@ -39,6 +39,26 @@ class EtatSante(BaseModel):
     documents_vectorises: int
 
 
+class ContexteUtilise(BaseModel):
+    traces: int
+    incidents_similaires: int
+    regles_metier: int
+
+
+class DiagnosticReponse(BaseModel):
+    """Resultat de POST /diagnose/{correlationId}."""
+
+    business_correlation_id: UUID
+    cause_racine: str
+    confiance: float
+    composant: Literal["CODE_JAVA", "BASE_DE_DONNEES", "FLUX_METIER"]
+    preuves: list[str]
+    preuves_rejetees: list[str]
+    modele: str
+    latence_ms: int
+    contexte: ContexteUtilise
+
+
 class DocumentSimilaire(BaseModel):
     """Un document de la base de connaissance et sa proximite de sens avec la requete."""
 

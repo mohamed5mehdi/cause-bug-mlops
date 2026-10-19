@@ -43,3 +43,23 @@ CREATE TABLE IF NOT EXISTS aiops.document_vectorise (
 -- vector_cosine_ops : la recherche DOIT utiliser l'operateur <=> (distance cosinus).
 CREATE INDEX IF NOT EXISTS idx_document_vectorise_hnsw
     ON aiops.document_vectorise USING hnsw (embedding vector_cosine_ops);
+
+-- Historique des diagnostics (ADR-013) : resultat, modele, cout et latence de chaque
+-- appel. Sert a l'evaluation (J9) et au tableau de bord.
+CREATE TABLE IF NOT EXISTS aiops.diagnostic (
+    id                      BIGSERIAL PRIMARY KEY,
+    business_correlation_id UUID         NOT NULL,
+    cause_racine            TEXT         NOT NULL,
+    confiance               NUMERIC(4,3) NOT NULL CHECK (confiance BETWEEN 0 AND 1),
+    composant               VARCHAR(20)  NOT NULL,
+    preuves                 TEXT[]       NOT NULL,
+    preuves_rejetees        INT          NOT NULL DEFAULT 0,
+    modele                  VARCHAR(60)  NOT NULL,
+    latence_ms              INT          NOT NULL,
+    jetons_entree           INT,
+    jetons_sortie           INT,
+    cree_le                 TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_diagnostic_correlation
+    ON aiops.diagnostic (business_correlation_id, cree_le);

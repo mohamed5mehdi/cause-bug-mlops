@@ -10,6 +10,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY app ./app
+COPY connaissance ./connaissance
 RUN useradd --create-home --uid 10001 aiops
 USER aiops
 EXPOSE 8000
@@ -25,4 +26,5 @@ COPY requirements-dev.txt pytest.ini ./
 RUN pip install -r requirements-dev.txt
 COPY tests ./tests
 USER aiops
+ENV PYTHONPATH=/app
 CMD ["pytest", "-v"]
