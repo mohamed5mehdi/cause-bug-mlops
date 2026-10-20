@@ -39,9 +39,11 @@ async def cycle_de_vie(app: FastAPI) -> AsyncIterator[None]:
     tache_regles: asyncio.Task[None] | None = None
     if parametres.gemini_api_key is not None and parametres.gemini_api_key.get_secret_value():
         cle = parametres.gemini_api_key.get_secret_value()
-        embeddings = EmbeddingsGemini(cle, parametres.modele_embedding)
+        embeddings = EmbeddingsGemini(cle, parametres.modele_embedding, delai_s=parametres.delai_appel_gemini_s)
         vectoriseur = Vectoriseur(pool, embeddings)
-        generateur = GenerateurGemini(cle, parametres.modele_diagnostic, parametres.modele_diagnostic_secours)
+        generateur = GenerateurGemini(cle, parametres.modele_diagnostic, parametres.modele_diagnostic_secours,
+                                      tentatives=parametres.tentatives_gemini,
+                                      delai_s=parametres.delai_appel_gemini_s)
         tache_regles = asyncio.create_task(_charger_regles(pool, embeddings, parametres.fichier_regles))
         LOG.info("IA active (embeddings %s, diagnostic %s, secours %s)", parametres.modele_embedding,
                  parametres.modele_diagnostic, parametres.modele_diagnostic_secours)
@@ -52,6 +54,7 @@ async def cycle_de_vie(app: FastAPI) -> AsyncIterator[None]:
     await ecouteur.demarrer()
     app.state.pool = pool
     app.state.ecouteur = ecouteur
+    app.state.budget_diagnostic_s = parametres.budget_diagnostic_s
     app.state.embeddings = embeddings
     app.state.vectoriseur = vectoriseur
     app.state.generateur = generateur
@@ -135,13 +138,19 @@ async def diagnostics(correlation_id: UUID, pool: Pool) -> list[DiagnosticHistor
 async def diagnose(request: Request, correlation_id: UUID, pool: Pool) -> DiagnosticReponse:
     """Diagnostic de cause racine d'un dossier par RAG.
     404 : aucune trace pour ce dossier ; 502 : le modele n'a pas fourni de reponse
-    exploitable ; 503 : IA inactive (cle Gemini absente)."""
+    exploitable ; 503 : IA inactive (cle Gemini absente) ; 504 : budget de temps depasse."""
     embeddings: EmbeddingsGemini | None = request.app.state.embeddings
     generateur: GenerateurGemini | None = request.app.state.generateur
     if embeddings is None or generateur is None:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Diagnostic inactif (cle Gemini absente)")
+    budget_s: float = request.app.state.budget_diagnostic_s
     try:
-        d = await diagnostiquer(pool, embeddings, generateur, correlation_id)
+        # Budget global (ADR-015) : un echec franc vaut mieux qu'un ecran bloque.
+        async with asyncio.timeout(budget_s):
+            d = await diagnostiquer(pool, embeddings, generateur, correlation_id)
+    except TimeoutError as erreur:
+        LOG.warning("Diagnostic %s : budget de %.0f s depasse", correlation_id, budget_s)
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Diagnostic trop long, reessayer") from erreur
     except DossierSansTrace as erreur:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Aucune trace pour ce dossier") from erreur
     except ErreurDiagnostic as erreur:

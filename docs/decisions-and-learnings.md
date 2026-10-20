@@ -514,3 +514,33 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   openapi-typescript à ce jour).
 - **Conséquences** : un service Compose de plus (dashboard-aiops) ; la génération des
   types demande aiops-engine démarré ou un `openapi.json` exporté.
+
+## ADR-015 — Délais maximaux des appels Gemini et budget de POST /diagnose
+
+- **Date** : 2026-10-20
+- **Statut** : accepté
+- **Contexte** : le 2026-10-20, un appel `gemini-3.8-flash` a mis 178 986 ms à répondre ;
+  les clients google-genai (diagnostic et embeddings) étaient créés sans délai, donc
+  `/diagnose` pouvait bloquer indéfiniment. Vérifié dans google-genai 2.31.0 (code du
+  SDK dans l'image) : `HttpOptions.timeout` est en **millisecondes** ; un délai dépassé
+  côté client lève `httpx.TimeoutException` (pas `APIError`) ; le SDK ne fait aucune
+  nouvelle tentative sans `retry_options`.
+- **Décision** :
+  - délai de 30 s par appel Gemini (diagnostic et embeddings), configurable
+    (`DELAI_APPEL_GEMINI_S`) ;
+  - 2 tentatives par modèle (au lieu de 3), configurable (`TENTATIVES_GEMINI`) ;
+  - délai dépassé = erreur passagère : `httpx.TimeoutException` **et** code 504 ;
+  - budget global de 130 s sur `POST /diagnose` (`asyncio.timeout`), au-delà : 504.
+- **Apprentissage** : le SDK transmet le délai au serveur (en-tête `X-Server-Timeout`) ;
+  Google coupe alors lui-même la génération et renvoie un **504**, avant que le délai
+  httpx n'expire. Sans 504 dans les codes passagers, il n'y avait pas de bascule.
+- **Alternatives écartées** : 3 tentatives par modèle (pire cas 186 s, écran bloqué
+  plus de 3 min) ; `retry_options` du SDK (relances cumulées avec les nôtres).
+- **Conséquences (vérifiées)** :
+  - pytest 39/39, dont 3 nouveaux (délai client → secours, 504 serveur → secours,
+    délai partout → échec explicite) ;
+  - bout en bout réel : 3.8-flash coupé deux fois à 30 s (504), bascule vers
+    3.5-flash-lite (503 puis 200), diagnostic FLUX_METIER en 72,9 s.
+- **Limites** : pire cas 122 s de génération, plus les embeddings, borné à 130 s ;
+  un diagnostic coupé en 504 n'est pas enregistré ; une génération abandonnée est
+  probablement facturée (hypothèse non vérifiée).

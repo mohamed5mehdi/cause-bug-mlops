@@ -127,6 +127,58 @@ async def test_erreur_passagere_puis_bascule_vers_le_modele_de_secours() -> None
     assert resultat.cause_racine == "ok"
 
 
+async def test_delai_depasse_retente_puis_bascule_vers_le_secours() -> None:
+    generateur = GenerateurGemini("cle-de-test-sans-reseau", "principal", "secours",
+                                  tentatives=2, attente_initiale_s=0.0, delai_s=5)
+    # Le SDK attend des millisecondes : 5 s -> 5000.
+    assert generateur._client._api_client._http_options.timeout == 5000
+    appels: list[str] = []
+    valide = DiagnosticGemini(cause_racine="ok", confiance=0.5, composant=Composant.FLUX_METIER, preuves=[])
+
+    async def generate_content(model: str, **_kwargs: object) -> object:
+        appels.append(model)
+        if model == "principal":
+            raise httpx.ReadTimeout("delai depasse")
+        return SimpleNamespace(parsed=valide, candidates=[], usage_metadata=None)
+
+    generateur._client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+    _, infos = await generateur.generer("consigne", "dossier")
+
+    assert appels == ["principal", "principal", "secours"]
+    assert infos["modele"] == "secours"
+
+
+async def test_delai_depasse_cote_serveur_504_bascule_vers_le_secours() -> None:
+    generateur = GenerateurGemini("cle-de-test-sans-reseau", "principal", "secours",
+                                  tentatives=2, attente_initiale_s=0.0)
+    appels: list[str] = []
+    valide = DiagnosticGemini(cause_racine="ok", confiance=0.5, composant=Composant.FLUX_METIER, preuves=[])
+
+    async def generate_content(model: str, **_kwargs: object) -> object:
+        appels.append(model)
+        if model == "principal":
+            raise _erreur_api(504)
+        return SimpleNamespace(parsed=valide, candidates=[], usage_metadata=None)
+
+    generateur._client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+    _, infos = await generateur.generer("consigne", "dossier")
+
+    assert appels == ["principal", "principal", "secours"]
+    assert infos["modele"] == "secours"
+
+
+async def test_delai_depasse_partout_est_un_echec_explicite() -> None:
+    generateur = GenerateurGemini("cle-de-test-sans-reseau", "principal", "secours",
+                                  tentatives=2, attente_initiale_s=0.0, delai_s=5)
+
+    async def generate_content(model: str, **_kwargs: object) -> object:
+        raise httpx.ReadTimeout("delai depasse")
+
+    generateur._client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+    with pytest.raises(ErreurDiagnostic, match="delai de 5 s depasse"):
+        await generateur.generer("consigne", "dossier")
+
+
 async def test_erreur_definitive_sans_nouvelle_tentative() -> None:
     generateur = GenerateurGemini("cle-de-test-sans-reseau", "principal", "secours",
                                   tentatives=3, attente_initiale_s=0.0)
@@ -225,7 +277,8 @@ async def test_bout_en_bout_un_refus_budgetaire_est_diagnostique(pool: asyncpg.P
         await asyncio.sleep(0.5)
     assert n == 12
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    # Au-dela du budget serveur (130 s, ADR-015) : le serveur repond toujours avant le client.
+    async with httpx.AsyncClient(timeout=140) as client:
         demandeur = await pool.fetchval("SELECT id FROM erp.utilisateur WHERE email = 'mehdi.demandeur@demo.local'")
         manager = await pool.fetchval("SELECT id FROM erp.utilisateur WHERE email = 'manager.n1@demo.local'")
         fournisseur = await pool.fetchval(

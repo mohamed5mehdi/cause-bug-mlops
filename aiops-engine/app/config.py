@@ -25,6 +25,11 @@ class Parametres(BaseSettings):
     modele_diagnostic: str = "gemini-3.8-flash"
     # Secours en cas d'indisponibilite passagere du modele principal (503 observe le 2026-10-19).
     modele_diagnostic_secours: str = "gemini-3.5-flash-lite"
+    # Delais (ADR-015) : sans eux, un appel Gemini lent bloque indefiniment (179 s observees
+    # le 2026-10-20). Pire cas de generation : 2 modeles x 2 tentatives x 30 s + 2 x 1 s = 122 s.
+    delai_appel_gemini_s: float = 30.0
+    tentatives_gemini: int = 2
+    budget_diagnostic_s: float = 130.0
     fichier_regles: str = str(Path(__file__).resolve().parent.parent / "connaissance" / "regles-metier.md")
 
     canal_traces: str = "trace_execution"

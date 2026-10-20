@@ -14,6 +14,7 @@ verifies dans la documentation Gemini le 2026-10-19 :
 import math
 from typing import Protocol
 
+import httpx
 from google import genai
 from google.genai import errors, types
 
@@ -59,9 +60,11 @@ class FournisseurEmbeddings(Protocol):
 class EmbeddingsGemini:
     """Implementation reelle via l'API Gemini (client asynchrone)."""
 
-    def __init__(self, cle_api: str, nom_modele: str) -> None:
+    def __init__(self, cle_api: str, nom_modele: str, delai_s: float = 30.0) -> None:
         self.nom_modele = nom_modele
-        self._client = genai.Client(api_key=cle_api).aio
+        # Le SDK attend un delai en MILLISECONDES ; sans lui, httpx attend indefiniment.
+        self._client = genai.Client(api_key=cle_api, http_options=types.HttpOptions(
+            timeout=int(delai_s * 1000))).aio
 
     async def vectoriser(self, texte_prepare: str) -> list[float]:
         try:
@@ -72,6 +75,9 @@ class EmbeddingsGemini:
             )
         except errors.APIError as erreur:
             raise ErreurEmbedding(f"API Gemini : code {erreur.code}") from erreur
+        except httpx.TimeoutException as erreur:
+            # Un delai depasse leve une exception httpx, pas une APIError.
+            raise ErreurEmbedding("API Gemini : delai depasse") from erreur
         if not reponse.embeddings or not reponse.embeddings[0].values:
             raise ErreurEmbedding("Reponse sans vecteur")
         valeurs = list(reponse.embeddings[0].values)

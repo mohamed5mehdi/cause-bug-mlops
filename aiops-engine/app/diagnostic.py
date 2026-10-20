@@ -21,6 +21,7 @@ from typing import Protocol
 from uuid import UUID
 
 import asyncpg
+import httpx
 from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel, Field, ValidationError
@@ -72,8 +73,10 @@ class GenerateurDiagnostic(Protocol):
     async def generer(self, consigne: str, dossier: str) -> tuple[DiagnosticGemini, dict[str, object]]: ...
 
 
-# Erreurs passageres cote API : surcharge (503), quota (429), erreur interne (500).
-CODES_PASSAGERS = {429, 500, 503}
+# Erreurs passageres cote API : surcharge (503), quota (429), erreur interne (500), delai
+# depasse cote serveur (504) : le SDK transmet notre delai dans l'en-tete X-Server-Timeout
+# et Google coupe lui-meme la generation a cette echeance (observe le 2026-10-20).
+CODES_PASSAGERS = {429, 500, 503, 504}
 
 
 CONSIGNE_SYSTEME = """Tu es un analyste AIOps qui diagnostique la cause racine d'un incident \
@@ -104,14 +107,18 @@ class GenerateurGemini:
     (cle invalide, modele inconnu, requete refusee) echoue immediatement."""
 
     def __init__(self, cle_api: str, modele: str, modele_secours: str | None = None,
-                 tentatives: int = 3, attente_initiale_s: float = 1.0) -> None:
+                 tentatives: int = 2, attente_initiale_s: float = 1.0, delai_s: float = 30.0) -> None:
         self.modeles = [modele] + ([modele_secours] if modele_secours and modele_secours != modele else [])
         self._tentatives = tentatives
         self._attente_initiale_s = attente_initiale_s
-        self._client = genai.Client(api_key=cle_api).aio
+        self._delai_s = delai_s
+        # Delai par appel HTTP (ADR-015). Le SDK l'attend en MILLISECONDES ; il ne fait
+        # aucune nouvelle tentative de lui-meme (retry_options absent), donc pas de cumul.
+        self._client = genai.Client(api_key=cle_api, http_options=types.HttpOptions(
+            timeout=int(delai_s * 1000))).aio
 
     async def generer(self, consigne: str, dossier: str) -> tuple[DiagnosticGemini, dict[str, object]]:
-        derniere: errors.APIError | None = None
+        derniere = "?"
         for modele in self.modeles:
             for tentative in range(1, self._tentatives + 1):
                 try:
@@ -120,13 +127,17 @@ class GenerateurGemini:
                 except errors.APIError as erreur:
                     if erreur.code not in CODES_PASSAGERS:
                         raise ErreurDiagnostic(f"API Gemini : code {erreur.code}") from erreur
-                    derniere = erreur
-                    LOG.warning("Gemini %s : code %s (tentative %d/%d)", modele, erreur.code,
-                                tentative, self._tentatives)
-                    if tentative < self._tentatives:
-                        await asyncio.sleep(self._attente_initiale_s * 2 ** (tentative - 1))
+                    derniere = f"code {erreur.code}"
+                except httpx.TimeoutException:
+                    # Un delai depasse leve une exception httpx (pas une APIError) :
+                    # traite comme une surcharge passagere (nouvelle tentative, puis secours).
+                    derniere = f"delai de {self._delai_s:.0f} s depasse"
+                LOG.warning("Gemini %s : %s (tentative %d/%d)", modele, derniere,
+                            tentative, self._tentatives)
+                if tentative < self._tentatives:
+                    await asyncio.sleep(self._attente_initiale_s * 2 ** (tentative - 1))
             LOG.warning("Modele %s indisponible, bascule vers le suivant", modele)
-        raise ErreurDiagnostic(f"API Gemini indisponible : code {derniere.code if derniere else '?'}")
+        raise ErreurDiagnostic(f"API Gemini indisponible : {derniere}")
 
     async def _appeler(self, modele: str, consigne: str, dossier: str) -> tuple[DiagnosticGemini, dict[str, int | None]]:
         reponse = await self._client.models.generate_content(
