@@ -544,3 +544,19 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
 - **Limites** : pire cas 122 s de génération, plus les embeddings, borné à 130 s ;
   un diagnostic coupé en 504 n'est pas enregistré ; une génération abandonnée est
   probablement facturée (hypothèse non vérifiée).
+
+## ADR-016 — Squelette dashboard-aiops (J7b) et exception du contrôle des noms
+
+- **Date** : 2026-10-20
+- **Statut** : accepté
+- **Décision** :
+  - dashboard-aiops livré : React 19.3, TypeScript 5.9 strict, Tailwind 4, ESLint 10
+    (`no-explicit-any` en erreur) ; image en deux étapes `node:24.22-alpine` (build) puis
+    `nginx:1.30-alpine` (service) ; nginx relaie `/api/*` vers aiops-engine avec
+    `proxy_read_timeout 140s` (au-delà du budget de 130 s, ADR-015) ; port hôte 5173.
+  - Le contrôle des noms interdits exclut `dashboard-aiops/src/api/schema.d.ts` : son
+    en-tête, qui signale une génération automatique par openapi-typescript, nomme un outil réellement utilisé
+    (traducteur OpenAPI → TypeScript, sans IA) et serait effacé à chaque régénération.
+- **Vérifications** : tsc + ESLint + build Vite passent ; un fichier piège avec `any` est
+  refusé ; via nginx : `GET /` 200, `/api/health` 200, `/api/dossiers` 200, route
+  inconnue → index.html (200) ; 4 conteneurs « healthy ».

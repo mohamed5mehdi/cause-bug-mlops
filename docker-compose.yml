@@ -62,5 +62,15 @@ services:
     ports:
       - "${AIOPS_HOST_PORT:-8000}:8000"
 
+  dashboard-aiops:
+    # nginx sert le tableau de bord et relaie /api/* vers aiops-engine (ADR-014).
+    build: ./dashboard-aiops
+    depends_on:
+      # nginx resout le nom aiops-engine au demarrage : le service doit exister.
+      aiops-engine:
+        condition: service_healthy
+    ports:
+      - "${DASHBOARD_HOST_PORT:-5173}:80"
+
 volumes:
   pgdata:
