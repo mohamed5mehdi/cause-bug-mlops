@@ -16,8 +16,10 @@ from app.connaissance import Vectoriseur, lire_regles, rechercher_similaires, sy
 from app.db import creer_pool, preparer_schema
 from app.diagnostic import DossierSansTrace, ErreurDiagnostic, GenerateurGemini, diagnostiquer
 from app.embeddings import EmbeddingsGemini, ErreurEmbedding
+from app.historique import lire_diagnostics, lister_dossiers
 from app.ingestion import EcouteurTraces
-from app.modeles import ContexteUtilise, DiagnosticReponse, DocumentSimilaire, EtatSante, TraceEvenement
+from app.modeles import (ContexteUtilise, DiagnosticHistorique, DiagnosticReponse, DocumentSimilaire,
+                         DossierResume, EtatSante, TraceEvenement)
 from app.traces import lire_chronologie
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
@@ -115,6 +117,18 @@ async def sante(request: Request, response: Response, pool: Pool, ecouteur: Ecou
 async def chronologie(correlation_id: UUID, pool: Pool) -> list[TraceEvenement]:
     """Chronologie technique d'un dossier (businessCorrelationId = id de la demande)."""
     return await lire_chronologie(pool, correlation_id)
+
+
+@app.get("/dossiers", response_model=list[DossierResume])
+async def dossiers(pool: Pool, limite: Annotated[int, Query(ge=1, le=200)] = 50) -> list[DossierResume]:
+    """Les dossiers les plus recemment actifs, avec leur nombre de traces et d'echecs."""
+    return await lister_dossiers(pool, limite)
+
+
+@app.get("/diagnostics/{correlation_id}", response_model=list[DiagnosticHistorique])
+async def diagnostics(correlation_id: UUID, pool: Pool) -> list[DiagnosticHistorique]:
+    """Historique des diagnostics d'un dossier, du plus recent au plus ancien (liste vide si aucun)."""
+    return await lire_diagnostics(pool, correlation_id)
 
 
 @app.post("/diagnose/{correlation_id}", response_model=DiagnosticReponse)

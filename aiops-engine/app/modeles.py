@@ -66,3 +66,30 @@ class DocumentSimilaire(BaseModel):
     reference: str
     texte: str
     similarite: float
+
+
+class DossierResume(BaseModel):
+    """Un dossier (businessCorrelationId) resume a partir de ses traces techniques."""
+
+    business_correlation_id: UUID
+    nb_traces: int
+    nb_echecs: int
+    premiere_trace: datetime
+    derniere_trace: datetime
+
+
+class DiagnosticHistorique(BaseModel):
+    """Un diagnostic passe, relu dans aiops.diagnostic (ADR-013)."""
+
+    id: int
+    business_correlation_id: UUID
+    cause_racine: str
+    confiance: float
+    composant: Literal["CODE_JAVA", "BASE_DE_DONNEES", "FLUX_METIER"]
+    preuves: list[str]
+    nb_preuves_rejetees: int
+    modele: str
+    latence_ms: int
+    jetons_entree: int | None
+    jetons_sortie: int | None
+    cree_le: datetime

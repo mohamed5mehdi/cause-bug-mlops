@@ -488,3 +488,29 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   - recherche filtrée sur l'index HNSW : avec beaucoup de documents, un filtre peut
     renvoyer moins de k résultats (à surveiller lors du passage à l'échelle) ;
   - quotas de l'offre gratuite non vérifiés.
+
+## ADR-014 — dashboard-aiops : React 19, même origine via nginx, types générés (J7)
+
+- **Date** : 2026-10-20
+- **Statut** : accepté
+- **Contexte** : la spécification initiale imposait React 18. Registre npm consulté le
+  2026-10-19 : react 19.3.1 (dernière 18 : 18.3.1), vite 8.3.4, tailwindcss et
+  @tailwindcss/vite 4.3.3, typescript 7.0.2, openapi-typescript 7.13.0 dont la
+  dépendance pair exige `typescript ^5.x`. aiops-engine n'a ni CORS, ni route listant
+  les dossiers, ni route relisant `aiops.diagnostic`.
+- **Décision** :
+  - React 19.3 (version maintenue) au lieu de React 18 ; la spécification est mise à jour.
+  - TypeScript fixé à 5.9.3 (compatible openapi-typescript), mode strict, aucun `any`.
+  - Tailwind 4 via `@tailwindcss/vite` (configuration en CSS, sans tailwind.config.js).
+  - Même origine : nginx sert le tableau de bord et relaie `/api/*` vers aiops-engine ;
+    en développement, le proxy de Vite joue le même rôle. Aucun CORS à ouvrir.
+  - Types TypeScript générés depuis `/openapi.json` (openapi-typescript) : une dérive
+    Pydantic ↔ TypeScript casse la compilation au lieu de casser l'écran.
+  - J7a ajoute `GET /dossiers` et `GET /diagnostics/{id}` (lecture seule).
+- **Alternatives écartées** : React 18 (react.dev documente la branche 19 comme
+  version courante) ;
+  CORS sur FastAPI (une surface de configuration de plus, inutile en même origine) ;
+  types recopiés à la main (dérive silencieuse) ; TypeScript 7 (incompatible
+  openapi-typescript à ce jour).
+- **Conséquences** : un service Compose de plus (dashboard-aiops) ; la génération des
+  types demande aiops-engine démarré ou un `openapi.json` exporté.
