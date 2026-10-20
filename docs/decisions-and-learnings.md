@@ -560,3 +560,24 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
 - **Vérifications** : tsc + ESLint + build Vite passent ; un fichier piège avec `any` est
   refusé ; via nginx : `GET /` 200, `/api/health` 200, `/api/dossiers` 200, route
   inconnue → index.html (200) ; 4 conteneurs « healthy ».
+
+## ADR-017 — Écrans du tableau de bord : dossiers, chronologie, diagnostic (J7c)
+
+- **Date** : 2026-10-20
+- **Statut** : accepté
+- **Décision** :
+  - trois zones : liste des dossiers (`GET /dossiers`, échecs mis en évidence),
+    chronologie numérotée T1…Tn (`GET /traces/{id}`, même numérotation que le dossier
+    d'enquête envoyé à Gemini, pour retrouver les preuves citées), panneau de diagnostic
+    (`POST /diagnose/{id}` et historique `GET /diagnostics/{id}`) ;
+  - un seul diagnostic à la fois : bouton désactivé et chronomètre pendant l'attente
+    (jusqu'à 130 s), pour ne jamais payer deux appels Gemini par un double clic ;
+  - codes 404, 502, 503 et 504 traduits en messages lisibles ;
+  - état de chaque zone en union discriminée (`en-cours | erreur | pret`) ; changement
+    de dossier = composants remontés (`key`), réponse obsolète ignorée.
+- **Vérifications (navigateur réel, via nginx)** : liste, chronologie T1–T6 avec
+  exceptions `BudgetInsuffisantException` sur T5 et T6, chronomètre visible, un seul
+  `POST /api/diagnose` dans le journal réseau, verdict FLUX_METIER avec preuves
+  T5, T6, R-06, R-05 (gemini-3.8-flash, 42,9 s), historique passé de 1 à 2.
+- **Limites** : confiance affichée à 100 % (calibration prévue à J9) ; pas de tests
+  automatisés de l'interface à ce stade.
