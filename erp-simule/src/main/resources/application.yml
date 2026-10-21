@@ -15,6 +15,11 @@ spring:
       schema: erp
       pool-name: erp-simule-pool
       maximum-pool-size: 10
+      # Delai d'attente de verrou applique par PostgreSQL a chaque connexion (ADR-018).
+      # Le query hint jakarta.persistence.lock.timeout des repositories n'a aucun effet
+      # sur PostgreSQL (attente de 6 s observee en concurrence reelle, panne P1) : sans
+      # cette ligne, une requete bloquee sur un verrou attend indefiniment.
+      connection-init-sql: "SET lock_timeout = '3s'"
 
   jpa:
     hibernate:
@@ -31,10 +36,9 @@ spring:
         default_schema: erp
         jdbc:
           time_zone: UTC
-        # Necessaire pour que le verrou PESSIMISTIC_WRITE avec query hint de timeout
-        # (voir *Repository#findByIdForUpdate) soit honore par le driver PostgreSQL.
-        query:
-          timeout: 5
+        # Le delai d'attente de verrou est porte par PostgreSQL (lock_timeout, voir
+        # hikari.connection-init-sql) : Hibernate ignore le query hint de delai sur ce
+        # dialecte, et "hibernate.query.timeout" n'est pas une propriete reconnue (ADR-018).
 
   flyway:
     enabled: true

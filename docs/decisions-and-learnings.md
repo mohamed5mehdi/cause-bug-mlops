@@ -581,3 +581,37 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   T5, T6, R-06, R-05 (gemini-3.8-flash, 42,9 s), historique passé de 1 à 2.
 - **Limites** : confiance affichée à 100 % (calibration prévue à J9) ; pas de tests
   automatisés de l'interface à ce stade.
+
+## ADR-018 — Pannes injectables P1 et P2, et correction du délai de verrou (J8a)
+
+- **Date** : 2026-10-21
+- **Statut** : accepté
+- **Contexte** : l'évaluation (J9) exige des pannes reproductibles, une par composant.
+  P3 (FLUX_METIER) existe déjà : défaut T1a conservé (ADR-002).
+- **Décision** :
+  - Interrupteur en mémoire (`panne.InterrupteurPannes`), toutes pannes désarmées au
+    démarrage ; route `GET/POST/DELETE /api/pannes/{P1|P2}` présente uniquement sous le
+    profil `pannes` (activé dans Compose avec `demo`), non authentifiée (simulateur local).
+  - **P1 (BASE_DE_DONNEES)** : une clôture budgétaire simulée (`ClotureBudgetaireService`,
+    fil séparé) retient 6 s le verrou `PESSIMISTIC_WRITE` de la sous-famille ; la
+    valorisation concurrente échoue en délai de verrou → 503 `RESSOURCE_VERROUILLEE`.
+  - **P2 (CODE_JAVA)** : dans `valoriser`, le taux (fraction 0,20) est lu comme un
+    pourcentage → TTC = HT × 21, sans aucune exception (panne silencieuse).
+  - Points d'injection balisés `>>> Point d'injection Pn` dans le code.
+- **Défaut réel découvert et corrigé** : le délai de verrou de 3 s n'a jamais fonctionné
+  (attente de 6 s puis succès, observée le 2026-10-20). Audit indépendant (Hibernate
+  6.6.13, code source au tag) : `PostgreSQLDialect` n'ajoute que `nowait` (0) ou
+  `skip locked` (-2), toute autre valeur donne un `for update` sans délai ; et
+  `hibernate.query.timeout` n'est pas une propriété reconnue (nom correct :
+  `jakarta.persistence.query.timeout`, en ms). Correction :
+  `spring.datasource.hikari.connection-init-sql: "SET lock_timeout = '3s'"` (portée
+  session ; SQLSTATE 55P03 → `CannotAcquireLockException` → 503).
+- **Alternatives écartées** : pannes par variables d'environnement (redémarrage à chaque
+  scénario) ; laisser le délai inopérant (P1 réduite à une lenteur, défaut réel conservé).
+- **Vérifications** : Java 24/24 (dont 4 nouveaux) ; pytest 43/43 (dont 4 nouveaux :
+  pannes désarmées par défaut, code inconnu → 400, sans panne TTC = HT × 1,20, P2 TTC =
+  HT × 21 avec trace SUCCES, P1 → 503 + `Retry-After` + trace ECHEC ≥ 2,5 s de type Lock).
+- **Limites** : le délai de 3 s s'applique à toutes les requêtes d'`erp_app`, migrations
+  Flyway comprises (sans effet sans concurrence au démarrage) ; P1 occupe une connexion
+  du pool pendant 6 s ; la propriété inactive `hibernate.query.timeout` et son commentaire
+  trompeur ont été retirés (pas de délai global de requête activé à sa place).

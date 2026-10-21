@@ -12,6 +12,8 @@ import com.causebugmlops.erp.domain.utilisateur.Utilisateur;
 import com.causebugmlops.erp.dto.LigneDemandeDto;
 import com.causebugmlops.erp.exception.RessourceIntrouvableException;
 import com.causebugmlops.erp.exception.TransitionStatutInvalideException;
+import com.causebugmlops.erp.panne.CodePanne;
+import com.causebugmlops.erp.panne.InterrupteurPannes;
 import com.causebugmlops.erp.repository.ArticleRepository;
 import com.causebugmlops.erp.repository.DemandeAchatInterneRepository;
 import com.causebugmlops.erp.repository.FournisseurRepository;
@@ -38,6 +40,9 @@ public class DemandeAchatInterneService {
     private final StockGovernanceService stockGovernanceService;
     private final PurchaseOrderService purchaseOrderService;
     private final HistoriqueValidationService historiqueValidationService;
+    private final InterrupteurPannes interrupteurPannes;
+
+    private static final BigDecimal CENT = BigDecimal.valueOf(100);
 
     @Transactional
     public DemandeAchatInterne creerBrouillon(Utilisateur demandeur, TypeDemande typeDemande, UrgenceDemande urgence, String justification, List<LigneDemandeDto> lignesDto) {
@@ -148,7 +153,14 @@ public class DemandeAchatInterneService {
             }
         }
 
-        BigDecimal multiplicateur = BigDecimal.ONE.add(tauxTva != null ? tauxTva : BigDecimal.ZERO);
+        BigDecimal tauxApplique = tauxTva != null ? tauxTva : BigDecimal.ZERO;
+        // >>> Point d'injection P2 (ADR-018) : le taux (fraction 0,20) est lu comme un
+        // pourcentage, d'ou un multiplicateur de 21 au lieu de 1,20.
+        if (interrupteurPannes.estArmee(CodePanne.P2)) {
+            tauxApplique = tauxApplique.multiply(CENT);
+        }
+        // <<< Fin du point d'injection P2.
+        BigDecimal multiplicateur = BigDecimal.ONE.add(tauxApplique);
         BigDecimal montantTtc = montantHt.multiply(multiplicateur);
 
         demande.setMontantHt(montantHt);

@@ -32,7 +32,9 @@ services:
         condition: service_healthy
     environment:
       # Profil demo : charge les donnees de demonstration (utilisateurs, fournisseurs, budgets).
-      SPRING_PROFILES_ACTIVE: demo
+      # Profil pannes : expose /api/pannes pour armer les pannes P1 et P2 (ADR-018),
+      # toutes desarmees au demarrage. Retirer "pannes" pour un simulateur sans injection.
+      SPRING_PROFILES_ACTIVE: demo,pannes
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_NAME: causebugmlops

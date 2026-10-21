@@ -4,6 +4,9 @@ import com.causebugmlops.erp.domain.budget.FamilleBudgetaire;
 import com.causebugmlops.erp.domain.budget.SousFamilleBudgetaire;
 import com.causebugmlops.erp.exception.BudgetInsuffisantException;
 import com.causebugmlops.erp.exception.RessourceIntrouvableException;
+import com.causebugmlops.erp.panne.CodePanne;
+import com.causebugmlops.erp.panne.InjecteurContentionVerrou;
+import com.causebugmlops.erp.panne.InterrupteurPannes;
 import com.causebugmlops.erp.repository.FamilleBudgetaireRepository;
 import com.causebugmlops.erp.repository.SousFamilleBudgetaireRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +21,16 @@ public class BudgetGovernanceService {
 
     private final SousFamilleBudgetaireRepository sousFamilleRepository;
     private final FamilleBudgetaireRepository familleRepository;
+    private final InterrupteurPannes interrupteurPannes;
+    private final InjecteurContentionVerrou injecteurContentionVerrou;
 
     @Transactional
     public void verifierEtEngager(Long sousFamilleId, BigDecimal montantTtc) {
+        // >>> Point d'injection P1 (ADR-018) : un traitement concurrent retient le verrou.
+        if (interrupteurPannes.estArmee(CodePanne.P1)) {
+            injecteurContentionVerrou.retenirVerrou(sousFamilleId);
+        }
+        // <<< Fin du point d'injection P1.
         SousFamilleBudgetaire sf = sousFamilleRepository.findByIdForUpdate(sousFamilleId)
                 .orElseThrow(() -> new RessourceIntrouvableException("Sous-famille", sousFamilleId));
         
