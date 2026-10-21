@@ -10,4 +10,7 @@ import java.util.UUID;
 public interface DemandeAjustementRepository extends JpaRepository<DemandeAjustement, Long> {
 
     boolean existsByDemandeInterneIdAndStatutIn(UUID demandeId, Collection<StatutAjustement> statuts);
+
+    /** Garde de l'API : l'ajustement designe dans l'URL appartient-il bien a cette demande ? */
+    boolean existsByIdAndDemandeInterneId(Long id, UUID demandeId);
 }

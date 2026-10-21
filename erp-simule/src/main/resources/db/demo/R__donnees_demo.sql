@@ -29,7 +29,9 @@ WHERE NOT EXISTS (
     SELECT 1 FROM erp.fournisseur f WHERE f.raison_sociale = v.raison_sociale
 );
 
--- Enveloppe budgetaire : une famille, deux sous-familles (montants en unite monetaire locale)
+-- Enveloppe budgetaire : une famille, trois sous-familles (montants en unite monetaire locale).
+-- INFO-ACC est volontairement petite : une demande ordinaire la depasse, ce qui declenche
+-- le parcours d'ajustement budgetaire du scenario de panne P3 (ADR-019).
 INSERT INTO erp.famille_budgetaire (code, libelle, montant_alloue)
 VALUES ('INFO', 'Informatique', 500000.00)
 ON CONFLICT (code) DO NOTHING;
@@ -39,7 +41,8 @@ SELECT f.id, v.code, v.libelle, v.montant_alloue
 FROM erp.famille_budgetaire f
 CROSS JOIN (VALUES
     ('INFO-MAT', 'Materiel informatique', 200000.00),
-    ('INFO-LOG', 'Logiciels et licences',  100000.00)
+    ('INFO-LOG', 'Logiciels et licences',  100000.00),
+    ('INFO-ACC', 'Accessoires informatiques',  500.00)
 ) AS v(code, libelle, montant_alloue)
 WHERE f.code = 'INFO'
 ON CONFLICT (code) DO NOTHING;

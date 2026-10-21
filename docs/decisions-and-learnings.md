@@ -615,3 +615,34 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   Flyway comprises (sans effet sans concurrence au démarrage) ; P1 occupe une connexion
   du pool pendant 6 s ; la propriété inactive `hibernate.query.timeout` et son commentaire
   trompeur ont été retirés (pas de délai global de requête activé à sa place).
+
+## ADR-019 — Ajustement budgétaire exposé en HTTP et scénario de panne P3 (J8b)
+
+- **Date** : 2026-10-21
+- **Statut** : accepté
+- **Contexte** : P3 (FLUX_METIER) est le défaut réel T1a, conservé (ADR-002), mais il
+  n'était atteignable que par les services (aucune route HTTP pour les ajustements).
+  Audit en lecture seule : le filtre de corrélation ne lit que la variable de route `id`
+  sous `/api/demandes/**` ; les méthodes d'ajustement lèvent des exceptions brutes (500).
+- **Décision** :
+  - `AjustementController` sous `/api/demandes/{id}/ajustements` : soumission (201),
+    `decision-daf`, `confirmation-acheteur`, `finalisation-amg` ; en-tête
+    `X-Utilisateur-Id` sur les quatre ; chaque route vérifie que l'ajustement appartient à
+    la demande (404 sinon), pour qu'aucune trace ne porte un mauvais corrId.
+  - Aucune règle métier dans le contrôleur ; T1a reste intact.
+  - Données de démo : sous-famille `INFO-ACC` (500), volontairement petite, pour déclencher
+    le refus budgétaire initial avec un prix ordinaire (option a, retenue par Mehdi).
+  - Scénario rejouable : prix calculé juste au-dessus du disponible de INFO-ACC, ajustement
+    du seul montant manquant (quelques unités transférées depuis INFO-MAT par passage).
+- **Alternatives écartées** : routes `/api/ajustements/{n}` (traces sans dossier) ;
+  réutiliser INFO-LOG (prix d'environ 90 000 et gros transferts à chaque passage).
+- **Vérifications** : pytest 44/45, dont 2 nouveaux (scénario P3 complet : 422 → ajustement
+  → DAF → confirmation T1a, demande EN_VALORISATION sans montant → valorisation 409 →
+  AMG, DAF, DG → VALIDEE_DG sans montant → PO 500, trace de confirmation rattachée au
+  dossier ; ajustement d'une autre demande → 404). Java 24/24 sur les classes habituelles.
+- **Limites** :
+  - `test_rattrapage_recopie_une_trace_manquante` a échoué une fois dans la suite complète,
+    puis passé 3/3 en isolé : condition de course du test (la trace supprimée peut ne pas
+    être encore copiée par l'écoute), à fiabiliser.
+  - `ConstatsBlocCVerificationTest` exige une base dédiée (`TEST_PG_PASSWORD`) : non rejoué ici.
+  - Le test 404 suppose qu'au moins un ajustement existe (il suit le test P3 dans le fichier).
