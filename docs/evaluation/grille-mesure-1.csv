@@ -1,0 +1,19 @@
+essai;cas;composant_attendu;cause_attendue;horodatage;correlation_id;composant_obtenu;composant_correct_0_1;cause_juste_0_1;preuve_pertinente_0_1;issue;confiance;preuves;preuves_rejetees;incidents_proches;modele;bascule_0_1;latence_ms;relance_0_1;remarques
+1;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
+2;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
+3;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;
+4;T;AUCUN;aucune anomalie : demande saine en attente de validation AMG;;;;;;;;;;;;;;;;
+5;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
+6;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
+7;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;
+8;T;AUCUN;aucune anomalie : demande saine en attente de validation AMG;;;;;;;;;;;;;;;;
+9;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
+10;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
+11;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;
+12;T;AUCUN;aucune anomalie : demande saine en attente de validation AMG;;;;;;;;;;;;;;;;
+13;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
+14;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
+15;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;
+16;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
+17;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
+18;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;

@@ -646,3 +646,28 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
     être encore copiée par l'écoute), à fiabiliser.
   - `ConstatsBlocCVerificationTest` exige une base dédiée (`TEST_PG_PASSWORD`) : non rejoué ici.
   - Le test 404 suppose qu'au moins un ajustement existe (il suit le test P3 dans le fichier).
+
+## ADR-020 — Protocole d'évaluation manuel, en deux mesures (J9)
+
+- **Date** : 2026-10-21
+- **Statut** : accepté
+- **Contexte** : évaluation menée manuellement par Mehdi. Un pilote de 3 essais (P1 juste,
+  P2 faux, P3 juste) et deux audits indépendants ont montré : P2 non diagnosticable (dossier
+  sans HT ni taux ; R-05 classée 5e et exclue du top 4) ; variables non contrôlées (modèle
+  qui bascule selon la charge de Google, historique d'incidents qui s'accumule, budgets de
+  démo qui évoluent) ; grille qui ne jugeait que le composant ; aucun cas sain.
+- **Décision** :
+  - deux séries identiques de 18 essais (P1, P2, P3 × 5 et 3 témoins sains), ordre fixe,
+    chacune précédée de `docker compose down -v` puis `up` (état initial identique) ;
+  - « réussite » = composant correct **et** cause juste ; témoin réussi si la cause dit
+    qu'aucune anomalie n'est établie ou si la confiance est < 0,5 ;
+  - quatre issues (réussite, mauvaise réponse, échec technique, scénario invalide) et un
+    dénominateur unique (diagnostics aboutis) ; indicateur principal sur le modèle principal
+    seul, secours rapporté à part ;
+  - résultats écrits « x/5 par panne », jamais en pourcentage ni comme preuve statistique ;
+  - le pilote est conservé (`docs/evaluation/pilote-2026-10-21.csv`) hors calcul.
+- **Alternatives écartées** : poursuivre la mesure lancée (avant/après non comparable) ;
+  évaluation automatisée (Mehdi souhaite juger lui-même chaque cause) ; fixer la température
+  (recommandation de Google pour Gemini 3 non vérifiée).
+- **Conséquences** : J9a (état complet de la demande dans le dossier, 12 règles envoyées en
+  entier) n'est appliqué qu'après la mesure 1 ; le README citera les deux séries.
