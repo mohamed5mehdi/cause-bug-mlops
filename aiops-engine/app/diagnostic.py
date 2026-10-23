@@ -96,6 +96,14 @@ etat incoherent produit par le programme) ;
 en base ;
   FLUX_METIER : enchainement d'etapes non conforme aux regles metier, ou refus metier \
 prevu par une regle (par exemple budget insuffisant).
+- Arbitrage CODE_JAVA / FLUX_METIER : verifie que montant TTC = montant HT x (1 + taux TVA). \
+Un montant calcule faux par le programme releve de CODE_JAVA, meme sans exception et meme \
+si les etapes du flux sont conformes. FLUX_METIER suppose une etape sautee, contournee ou \
+dans le mauvais ordre, visible dans les traces ou la piste d'audit.
+- Un dossier peut etre sain : une demande en cours, dont les etapes deja franchies \
+respectent les regles, n'est pas une anomalie. Si rien dans le dossier ne contredit les \
+regles, ecris "Aucune anomalie etablie" dans cause_racine, avec une confiance inferieure \
+a 0,5, et choisis le composant le moins improbable.
 - Donne une confiance basse si le dossier ne permet pas de conclure."""
 
 
@@ -185,8 +193,15 @@ class Diagnostic:
 
 
 ETAT_DOSSIER = """
-    SELECT statut, montant_ttc FROM erp.demande_achat_interne WHERE id = $1
+    SELECT statut, type_demande, montant_ht, taux_tva, montant_ttc, fournisseur_selectionne_id
+    FROM erp.demande_achat_interne WHERE id = $1
 """
+
+
+def _valeur(v: object) -> str:
+    """Valeur lisible pour le modele : une donnee absente est dite explicitement (ADR-021)."""
+    return "non valorise" if v is None else str(v)
+
 
 PISTE_AUDIT = """
     SELECT etape, decision, horodatage FROM erp.historique_validation
@@ -226,7 +241,11 @@ def construire_dossier(traces: list[TraceEvenement], etat: asyncpg.Record | None
     if etat is None:
         lignes.append("Demande introuvable dans le systeme observe.")
     else:
-        lignes.append(f"Statut : {etat['statut']} ; montant TTC : {etat['montant_ttc']}")
+        lignes.append(f"Statut : {etat['statut']} ; type : {etat['type_demande']} ; "
+                      f"montant HT : {_valeur(etat['montant_ht'])} ; "
+                      f"taux TVA : {_valeur(etat['taux_tva'])} ; "
+                      f"montant TTC : {_valeur(etat['montant_ttc'])} ; "
+                      f"fournisseur selectionne : {_valeur(etat['fournisseur_selectionne_id'])}")
     lignes += ["", "## Piste d'audit fonctionnelle (decisions de validation)"]
     lignes += [f"- {a['horodatage'].isoformat()} {a['etape']} : {a['decision']}" for a in audit] or [
         "Aucune decision enregistree."]
@@ -246,7 +265,9 @@ def construire_dossier(traces: list[TraceEvenement], etat: asyncpg.Record | None
 
 async def diagnostiquer(pool: asyncpg.Pool, embeddings: FournisseurEmbeddings,
                         generateur: GenerateurDiagnostic, correlation_id: UUID,
-                        k_incidents: int = 3, k_regles: int = 4) -> Diagnostic:
+                        k_incidents: int = 3, k_regles: int = 12) -> Diagnostic:
+    # k_regles = 12 : la base de connaissance compte 12 regles, toutes envoyees (ADR-021) ;
+    # avec 4, la regle de calcul R-05 etait exclue du dossier P2 (mesure 1).
     debut = time.perf_counter()
     traces = await lire_chronologie(pool, correlation_id)
     if not traces:

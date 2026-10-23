@@ -671,3 +671,32 @@ Format ADR court : date, contexte, décision, alternatives écartées, conséque
   (recommandation de Google pour Gemini 3 non vérifiée).
 - **Conséquences** : J9a (état complet de la demande dans le dossier, 12 règles envoyées en
   entier) n'est appliqué qu'après la mesure 1 ; le README citera les deux séries.
+
+## ADR-021 — Dossier complet et consigne d'arbitrage après la mesure 1 (J9a)
+
+- **Date** : 2026-10-23
+- **Statut** : accepté
+- **Contexte** : mesure 1 (commit a08c091, grille `docs/evaluation/grille-mesure-1.csv`) :
+  P1 5/5, P3 5/5, P2 0/5 (toujours FLUX_METIER, TVA jamais citée), témoins 0/3 (anomalie
+  inventée, confiance 0,85 à 1,0). Les 18 diagnostics viennent du modèle de secours ; le
+  motif des bascules n'est plus dans les logs (indicateur « modèle principal » : 0 diagnostic).
+  Écarts déclarés : essais 5 à 18 jugés par alignement sur les essais 1 à 4, jugés un à un
+  par Mehdi ; plateforme redémarrée entre les essais 4 et 5 ; un P1 hors grille non compté.
+  Review de `diagnostic.py` : dossier sans HT ni taux (P2 invisible) ; sans échec, la
+  recherche remonte les règles de flux et exclut R-05 ; schéma et consigne présupposent une
+  panne (aucune issue « dossier sain »).
+- **Décision** (`aiops-engine/app/diagnostic.py`) :
+  - l'état de la demande inclut type, montant HT, taux TVA, TTC et fournisseur ; une valeur
+    absente est écrite « non valorise » ;
+  - les 12 règles sont envoyées (`k_regles = 12`) ;
+  - la consigne impose le contrôle TTC = HT x (1 + taux) et l'arbitrage : calcul faux du
+    programme = CODE_JAVA, même sans exception ; FLUX_METIER = étape sautée, contournée ou
+    hors ordre ;
+  - un dossier sain est permis : « Aucune anomalie etablie » avec une confiance < 0,5.
+- **Alternatives écartées** : valeur `AUCUNE_ANOMALIE` dans l'énumération `Composant`
+  (touche la base, les types TypeScript et le tableau de bord à l'approche de J10) ;
+  persister le motif de bascule (migration ; remplacé pour la mesure 2 par la capture des
+  logs pendant toute la série).
+- **Conséquences** : dossier plus long (jetons et latence en hausse) ; risque de confiance
+  abaissée sur de vraies pannes, à vérifier par la mesure 2 (même protocole) ; `k_regles`
+  devra suivre le nombre de règles si la base de connaissance change.
