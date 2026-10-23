@@ -1,19 +1,19 @@
 essai;cas;composant_attendu;cause_attendue;horodatage;correlation_id;composant_obtenu;composant_correct_0_1;cause_juste_0_1;preuve_pertinente_0_1;issue;confiance;preuves;preuves_rejetees;incidents_proches;modele;bascule_0_1;latence_ms;relance_0_1;remarques
-1;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
-2;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
-3;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;
-4;T;AUCUN;aucune anomalie : demande saine en attente de validation AMG;;;;;;;;;;;;;;;;
-5;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
-6;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
-7;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;
-8;T;AUCUN;aucune anomalie : demande saine en attente de validation AMG;;;;;;;;;;;;;;;;
-9;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
-10;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
-11;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;
-12;T;AUCUN;aucune anomalie : demande saine en attente de validation AMG;;;;;;;;;;;;;;;;
-13;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
-14;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
-15;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;
-16;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;;;;;;;;;;;;;;;;
-17;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);;;;;;;;;;;;;;;;
-18;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);;;;;;;;;;;;;;;;
+1;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;2026-10-21 03:19:39;1e76a9cd-be6a-4eca-87a2-b01c0ff31f1e;BASE_DE_DONNEES;1;1;1;REUSSITE;1.0;T5 T6 R-12;;0;gemini-3.5-flash-lite;1;4093;0;
+2;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);2026-10-21 23:23:49;0c712f17-f3ce-4473-b9f3-d7dff44c2bdb;FLUX_METIER;0;0;0;MAUVAISE_REPONSE;0.9;T1 T2 T4 T5 R-01 R-03 R-04;;2;gemini-3.5-flash-lite;1;33199;0;
+3;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);2026-10-21 23:57:27;32c9bb68-8d02-413a-9867-69231e2260e3;FLUX_METIER;1;1;1;REUSSITE;1.0;T21 R-09;Etat actuel de la demande;3;gemini-3.5-flash-lite;1;35268;0;un P1 hors grille (b3fc4431, 23:42) a ete lance avant cet essai et n'est pas compte
+4;T;AUCUN;aucune anomalie : demande saine en attente de validation AMG;2026-10-22 00:01:18;d2515e0f-a16c-444c-893e-2ed2112d0cbe;FLUX_METIER;0;0;;MAUVAISE_REPONSE;1.0;T1 T2 T4 T5 R-01 R-08;;3;gemini-3.5-flash-lite;1;33329;0;temoin : preuve non applicable (aucune panne), laissee vide
+5;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;2026-10-22 18:40:08;42782665-9c0d-4144-8b12-8a7f5ca588c4;BASE_DE_DONNEES;1;1;1;REUSSITE;1.0;T5 T6 I1 I2 I3 R-12;;3;gemini-3.5-flash-lite;1;23207;0;plateforme redemarree entre les essais 4 et 5 ; juge par alignement sur l'essai 1
+6;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);2026-10-22 18:40:34;1a74b8dd-16df-460e-b47a-1883d33794a6;FLUX_METIER;0;0;0;MAUVAISE_REPONSE;0.95;T2 T4 T5 R-01 R-04;;3;gemini-3.5-flash-lite;1;17104;0;juge par alignement sur l'essai 2
+7;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);2026-10-22 18:40:51;d052658a-14e1-4050-a340-4baa36c4694a;FLUX_METIER;1;1;1;REUSSITE;1.0;T21 R-09;;3;gemini-3.5-flash-lite;1;10440;0;juge par alignement sur l'essai 3
+8;T;AUCUN;aucune anomalie : demande saine en attente de validation AMG;2026-10-22 18:41:10;f1932986-2c4b-49b8-bb33-71c86a7b021e;FLUX_METIER;0;0;;MAUVAISE_REPONSE;0.9;T1 T2 T4 T5 T6 R-01 R-08;;3;gemini-3.5-flash-lite;1;11163;0;juge par alignement sur l'essai 4 ; preuve non applicable
+9;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;2026-10-22 18:41:50;85382e5a-ea96-480f-ba44-e7a74959d6bd;BASE_DE_DONNEES;1;1;1;REUSSITE;1.0;T5 T6 R-12 I1 I2 I3;;3;gemini-3.5-flash-lite;1;23319;0;juge par alignement sur l'essai 1
+10;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);2026-10-22 18:42:04;b61d2561-7d13-4db2-a89f-306c23d8bb6f;FLUX_METIER;0;0;0;MAUVAISE_REPONSE;0.95;T4 T5 R-01 R-08;;3;gemini-3.5-flash-lite;1;7554;0;juge par alignement sur l'essai 2
+11;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);2026-10-22 18:42:16;a90dec42-8a0e-4dc1-912f-f258db5e0f1d;FLUX_METIER;1;1;1;REUSSITE;1.0;T21 R-09;;3;gemini-3.5-flash-lite;1;4471;0;juge par alignement sur l'essai 3
+12;T;AUCUN;aucune anomalie : demande saine en attente de validation AMG;2026-10-22 18:42:31;ca4116b8-8a58-4e14-86fd-bc1ffdcddc7b;FLUX_METIER;0;0;;MAUVAISE_REPONSE;0.85;T2 T3 R-03 R-01;;3;gemini-3.5-flash-lite;1;7473;0;juge par alignement sur l'essai 4 ; preuve non applicable
+13;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;2026-10-22 18:43:07;028c297a-85a6-4c24-973c-f2b76f17b5bb;BASE_DE_DONNEES;1;1;1;REUSSITE;0.95;T5 T6 R-12;;3;gemini-3.5-flash-lite;1;18301;0;juge par alignement sur l'essai 1
+14;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);2026-10-22 18:43:19;2e8441af-6b56-43e9-b11f-4e5f74863e73;FLUX_METIER;0;0;0;MAUVAISE_REPONSE;0.95;T2 T4 T5 R-01 R-04;;3;gemini-3.5-flash-lite;1;4684;0;juge par alignement sur l'essai 2
+15;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);2026-10-22 18:43:32;43141aea-19b2-4941-8422-844375de946e;FLUX_METIER;1;1;1;REUSSITE;1.0;T21 R-09;;3;gemini-3.5-flash-lite;1;5941;0;juge par alignement sur l'essai 3
+16;P1;BASE_DE_DONNEES;verrou de l'enveloppe retenu par un traitement concurrent;2026-10-22 18:43:55;457fb121-bdc8-45eb-9bd8-6d990d5d4900;BASE_DE_DONNEES;1;1;1;REUSSITE;1.0;T5 T6 I1 I2 I3 R-12;;3;gemini-3.5-flash-lite;1;6327;0;juge par alignement sur l'essai 1
+17;P2;CODE_JAVA;taux de TVA lu comme un pourcentage (TTC = HT x 21);2026-10-22 18:44:07;6887145a-492b-4d5e-a007-d618ed798742;FLUX_METIER;0;0;0;MAUVAISE_REPONSE;0.9;T5 T6 R-01 R-08;;3;gemini-3.5-flash-lite;1;4865;0;juge par alignement sur l'essai 2
+18;P3;FLUX_METIER;validee jusqu'au DG sans valorisation (etape contournee);2026-10-22 18:44:22;b02cf883-61ca-4643-81fc-4070780f80bd;FLUX_METIER;1;1;1;REUSSITE;0.95;T21 R-09;;3;gemini-3.5-flash-lite;1;8078;0;juge par alignement sur l'essai 3
