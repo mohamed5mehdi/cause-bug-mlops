@@ -1,10 +1,14 @@
 import createClient from 'openapi-fetch';
 
+import { fetchDemo, MODE_DEMO } from './demo';
 import type { components, paths } from './schema';
 
 /** Client HTTP type a partir du contrat OpenAPI d'aiops-engine (ADR-014).
- * Meme origine : les appels partent vers /api, que nginx (ou Vite en dev) relaie. */
-export const api = createClient<paths>({ baseUrl: '/api' });
+ * Meme origine : les appels partent vers /api, que nginx (ou Vite en dev) relaie.
+ * En demo statique, ils sont servis par les instantanes JSON (voir demo.ts). */
+export const api = createClient<paths>(
+  MODE_DEMO ? { baseUrl: '/api', fetch: fetchDemo } : { baseUrl: '/api' },
+);
 
 type Schemas = components['schemas'];
 export type EtatSante = Schemas['EtatSante'];
@@ -16,6 +20,9 @@ export type Composant = DiagnosticReponse['composant'];
 
 /** Messages lisibles pour les codes d'erreur documentes de POST /diagnose (ADR-013, ADR-015). */
 export function messageErreurDiagnostic(statut: number): string {
+  if (MODE_DEMO) {
+    return "Demo statique : les diagnostics affiches ont ete produits en local. Pour en lancer un nouveau, demarrer le projet (voir le README).";
+  }
   switch (statut) {
     case 404:
       return 'Aucune trace pour ce dossier : rien a diagnostiquer.';

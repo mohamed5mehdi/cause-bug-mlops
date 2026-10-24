@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { api, type DossierResume } from '../api/client';
+import { LIBELLES, type Cas, type Scenarios } from '../api/scenarios';
 import { dateHeure, idCourt } from '../format';
 
 type Proprietes = {
   selection: string | null;
   onSelection: (correlationId: string) => void;
+  scenarios: Scenarios;
+};
+
+const COULEURS: Readonly<Record<Cas, string>> = {
+  P1: 'bg-sky-50 text-sky-800',
+  P2: 'bg-amber-50 text-amber-900',
+  P3: 'bg-teal-50 text-teal-800',
+  T: 'bg-slate-100 text-slate-700',
 };
 
 type Chargement =
@@ -14,7 +23,7 @@ type Chargement =
   | { etape: 'pret'; dossiers: DossierResume[] };
 
 /** Registre des dossiers les plus recemment actifs (GET /dossiers). */
-export default function ListeDossiers({ selection, onSelection }: Proprietes) {
+export default function ListeDossiers({ selection, onSelection, scenarios }: Proprietes) {
   const [etat, setEtat] = useState<Chargement>({ etape: 'en-cours' });
 
   const charger = useCallback(async () => {
@@ -32,7 +41,11 @@ export default function ListeDossiers({ selection, onSelection }: Proprietes) {
   }, [charger]);
 
   return (
-    <section aria-labelledby="titre-dossiers" className="rounded-xl border border-slate-200 bg-white">
+    <section
+      data-tour="liste"
+      aria-labelledby="titre-dossiers"
+      className="rounded-xl border border-slate-200 bg-white"
+    >
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <h2 id="titre-dossiers" className="text-sm font-medium text-slate-900">Dossiers</h2>
         <button
@@ -55,10 +68,12 @@ export default function ListeDossiers({ selection, onSelection }: Proprietes) {
         <ul className="max-h-[70vh] divide-y divide-slate-100 overflow-y-auto">
           {etat.dossiers.map((d) => {
             const actif = d.business_correlation_id === selection;
+            const cas = scenarios[d.business_correlation_id];
             return (
               <li key={d.business_correlation_id}>
                 <button
                   type="button"
+                  data-tour-dossier={d.business_correlation_id}
                   aria-current={actif}
                   onClick={() => { onSelection(d.business_correlation_id); }}
                   className={`w-full px-4 py-3 text-left hover:bg-slate-50 ${actif ? 'bg-slate-100' : ''}`}
@@ -73,6 +88,11 @@ export default function ListeDossiers({ selection, onSelection }: Proprietes) {
                       <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800">sans echec</span>
                     )}
                   </div>
+                  {cas !== undefined && (
+                    <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-xs ${COULEURS[cas]}`}>
+                      {LIBELLES[cas]}
+                    </span>
+                  )}
                   <div className="mt-1 text-xs text-slate-500">
                     {d.nb_traces} trace{d.nb_traces > 1 ? 's' : ''} · {dateHeure(d.derniere_trace)}
                   </div>

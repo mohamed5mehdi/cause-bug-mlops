@@ -1,0 +1,128 @@
+[
+  {
+    "business_correlation_id": "2e0aab33-ce48-4553-b1c7-3a62412d4ec6",
+    "nb_traces": 21,
+    "nb_echecs": 3,
+    "premiere_trace": "2026-10-24T00:03:44.326454Z",
+    "derniere_trace": "2026-10-24T00:03:45.637430Z"
+  },
+  {
+    "business_correlation_id": "0e4d8ca4-cba8-4e59-b670-194d6ed6e880",
+    "nb_traces": 6,
+    "nb_echecs": 0,
+    "premiere_trace": "2026-10-24T00:03:33.884043Z",
+    "derniere_trace": "2026-10-24T00:03:34.135659Z"
+  },
+  {
+    "business_correlation_id": "bc2ac0d9-fd85-40d6-be4d-d9a66069131d",
+    "nb_traces": 6,
+    "nb_echecs": 2,
+    "premiere_trace": "2026-10-24T00:03:13.232059Z",
+    "derniere_trace": "2026-10-24T00:03:13.461650Z"
+  },
+  {
+    "business_correlation_id": "9d915dad-6ec9-42df-9ec5-e3a5b86f5610",
+    "nb_traces": 21,
+    "nb_echecs": 3,
+    "premiere_trace": "2026-10-24T00:03:01.351306Z",
+    "derniere_trace": "2026-10-24T00:03:02.897594Z"
+  },
+  {
+    "business_correlation_id": "7e5f6480-ca1a-41d2-8cb9-e433f6f64421",
+    "nb_traces": 6,
+    "nb_echecs": 0,
+    "premiere_trace": "2026-10-24T00:02:50.500185Z",
+    "derniere_trace": "2026-10-24T00:02:50.752449Z"
+  },
+  {
+    "business_correlation_id": "a7563bfa-9f36-4133-9238-b6a41110c73f",
+    "nb_traces": 6,
+    "nb_echecs": 2,
+    "premiere_trace": "2026-10-24T00:02:29.631274Z",
+    "derniere_trace": "2026-10-24T00:02:29.886031Z"
+  },
+  {
+    "business_correlation_id": "7605533d-85eb-4a51-addb-4fc5ec1c0c9a",
+    "nb_traces": 6,
+    "nb_echecs": 0,
+    "premiere_trace": "2026-10-24T00:02:19.082440Z",
+    "derniere_trace": "2026-10-24T00:02:19.289461Z"
+  },
+  {
+    "business_correlation_id": "ea003647-753b-4ed7-85b6-64c19f2a535e",
+    "nb_traces": 21,
+    "nb_echecs": 3,
+    "premiere_trace": "2026-10-24T00:02:07.502000Z",
+    "derniere_trace": "2026-10-24T00:02:08.874055Z"
+  },
+  {
+    "business_correlation_id": "cf9e9f9e-0003-4784-93a9-4dd3cd929007",
+    "nb_traces": 6,
+    "nb_echecs": 0,
+    "premiere_trace": "2026-10-24T00:01:57.075686Z",
+    "derniere_trace": "2026-10-24T00:01:57.323593Z"
+  },
+  {
+    "business_correlation_id": "54518743-d02c-4977-9b89-5235d02b9852",
+    "nb_traces": 6,
+    "nb_echecs": 2,
+    "premiere_trace": "2026-10-24T00:01:36.496922Z",
+    "derniere_trace": "2026-10-24T00:01:36.744510Z"
+  },
+  {
+    "business_correlation_id": "3d60fdb9-0842-4dd1-a2a6-c1abb85705cd",
+    "nb_traces": 6,
+    "nb_echecs": 0,
+    "premiere_trace": "2026-10-24T00:01:26.370191Z",
+    "derniere_trace": "2026-10-24T00:01:26.587370Z"
+  },
+  {
+    "business_correlation_id": "37f96950-7a92-4018-ae00-2b77faf0a9c5",
+    "nb_traces": 21,
+    "nb_echecs": 3,
+    "premiere_trace": "2026-10-24T00:01:14.916219Z",
+    "derniere_trace": "2026-10-24T00:01:16.341674Z"
+  },
+  {
+    "business_correlation_id": "04aef6b5-1d55-4ab0-a111-566e22448b68",
+    "nb_traces": 6,
+    "nb_echecs": 0,
+    "premiere_trace": "2026-10-24T00:01:04.415924Z",
+    "derniere_trace": "2026-10-24T00:01:04.685223Z"
+  },
+  {
+    "business_correlation_id": "8bcab13e-62e2-4e3d-b827-26b404620144",
+    "nb_traces": 6,
+    "nb_echecs": 2,
+    "premiere_trace": "2026-10-24T00:00:43.470283Z",
+    "derniere_trace": "2026-10-24T00:00:43.789092Z"
+  },
+  {
+    "business_correlation_id": "1172c2f9-f7ef-4a99-99c8-baa4658f8692",
+    "nb_traces": 6,
+    "nb_echecs": 0,
+    "premiere_trace": "2026-10-24T00:00:31.751429Z",
+    "derniere_trace": "2026-10-24T00:00:31.989723Z"
+  },
+  {
+    "business_correlation_id": "991d6024-7c26-44a8-9754-9764059b3d2f",
+    "nb_traces": 21,
+    "nb_echecs": 3,
+    "premiere_trace": "2026-10-23T23:59:51.021240Z",
+    "derniere_trace": "2026-10-23T23:59:52.939024Z"
+  },
+  {
+    "business_correlation_id": "0b9bb70a-0f78-460d-bf8b-98b0cfc03465",
+    "nb_traces": 6,
+    "nb_echecs": 0,
+    "premiere_trace": "2026-10-23T23:59:11.966018Z",
+    "derniere_trace": "2026-10-23T23:59:12.244392Z"
+  },
+  {
+    "business_correlation_id": "70ca529a-df1c-46b9-b6dd-7a3c5aa013ae",
+    "nb_traces": 6,
+    "nb_echecs": 2,
+    "premiere_trace": "2026-10-23T23:57:54.333086Z",
+    "derniere_trace": "2026-10-23T23:57:54.738220Z"
+  }
+]
