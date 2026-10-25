@@ -5,6 +5,8 @@ purchase-approval simulator, and a RAG pipeline (PostgreSQL + pgvector + Gemini)
 execution traces and the business rules, then explains what broke, where, and why — with
 the evidence it relied on.
 
+**[▶ Live demo](https://mohamed5mehdi.github.io/cause-bug-mlops/)** — runs in the browser, nothing to install (replays recorded diagnostics; no live model calls).
+
 ## Why I built this
 
 During my final-year engineering project I worked on procurement software: purchase
